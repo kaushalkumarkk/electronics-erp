@@ -12,15 +12,15 @@ const BALANCE_SQL = `
   - coalesce((select sum(r.to_account) from sale_returns r join sales s on s.id = r.sale_id where s.customer_id = c.id), 0)
   - coalesce((select sum(p.amount) from customer_payments p where p.customer_id = c.id), 0)`;
 
-export function listCustomers(q: string, all: boolean): Customer[] {
+export function listCustomers(q: string, all: boolean, limit = 1000): Customer[] {
   const like = `%${q.trim()}%`;
   const rows = getDb()
     .prepare(
       `select c.*, ${BALANCE_SQL} as balance from customers c
        where (c.name like ? or c.phone like ? or c.shop_name like ?) ${all ? "" : "and c.active = 1"}
-       order by c.name collate nocase limit 1000`
+       order by c.name collate nocase limit ?`
     )
-    .all(like, like, like) as (CRow & { balance: number })[];
+    .all(like, like, like, Math.min(1000, Math.max(1, Math.floor(limit)))) as (CRow & { balance: number })[];
   return rows.map((r) => ({ ...r, active: !!r.active, balance: r2(r.balance) }));
 }
 

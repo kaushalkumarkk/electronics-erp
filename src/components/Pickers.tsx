@@ -24,11 +24,14 @@ function useSearch<T>(q: string, run: (q: string) => Promise<T[]>, enabled = tru
   return rows;
 }
 
+const LIST_LIMIT = 6;
+
 /** Pick a saved customer or technician. Empty means a walk-in. */
-export function PartyPicker({ value, onChange, placeholder = "Walk-in (search name or phone for a saved party)" }: { value: Customer | null; onChange: (c: Customer | null) => void; placeholder?: string }) {
+/** `up` opens the list above the box (for a box at the bottom of the screen). Only the best few matches are listed; typing narrows them. */
+export function PartyPicker({ value, onChange, up = false, placeholder = "Walk-in (search name or phone for a saved party)" }: { value: Customer | null; onChange: (c: Customer | null) => void; up?: boolean; placeholder?: string }) {
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
-  const rows = useSearch(q, (s) => api.customerList(s, false), open);
+  const rows = useSearch(q, (s) => api.customerList(s, false, LIST_LIMIT), open);
   const { can } = useSession();
   const [adding, setAdding] = useState(false);
   const box = useRef<HTMLDivElement>(null);
@@ -57,7 +60,7 @@ export function PartyPicker({ value, onChange, placeholder = "Walk-in (search na
       <IconSearch size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
       <input data-party className="input pl-9" placeholder={placeholder} value={q} onFocus={() => setOpen(true)} onChange={(e) => { setQ(e.target.value); setOpen(true); }} />
       {open && (rows.length > 0 || can("customers")) && (
-        <div className="absolute z-30 mt-1 max-h-72 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white py-1 shadow-xl">
+        <div className={`absolute z-30 max-h-72 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white py-1 shadow-xl ${up ? "bottom-full mb-1" : "mt-1"}`}>
           {rows.map((c) => (
             <button key={c.id} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-brand-50" onClick={() => { onChange(c); setQ(""); setOpen(false); }}>
               <span className="font-semibold">{c.name}</span>
@@ -68,6 +71,7 @@ export function PartyPicker({ value, onChange, placeholder = "Walk-in (search na
               </span>
             </button>
           ))}
+          {rows.length >= LIST_LIMIT && <div className="px-3 py-1 text-[11px] text-slate-400">Showing the first {LIST_LIMIT}. Type a name or phone to narrow it down.</div>}
           {can("customers") && (
             <button className="flex w-full items-center gap-2 border-t border-slate-100 px-3 py-2 text-left text-sm font-semibold text-brand-700 hover:bg-brand-50" onClick={() => setAdding(true)}>
               + New customer / technician{q.trim() ? ` "${q.trim()}"` : ""}
@@ -161,7 +165,7 @@ export function ProductSearch({
         onKeyDown={onKey}
       />
       {open && rows.length > 0 && (
-        <div className="absolute z-30 mt-1 max-h-80 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white py-1 shadow-xl">
+        <div className="absolute z-30 mt-1 max-h-[22rem] w-full overflow-y-auto rounded-lg border border-slate-200 bg-white py-1 shadow-xl">
           <div className="grid grid-cols-[1fr_90px_90px_70px] gap-2 px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-400">
             <span>Product</span><span className="text-right">Customer</span><span className="text-right">Technician</span><span className="text-right">Stock</span>
           </div>

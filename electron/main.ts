@@ -131,7 +131,7 @@ const handlers: Api = {
   udharBills: async () => (may("payments"), udharBills()),
   purchaseGet: async (id) => (may("purchases"), getPurchase(id)),
 
-  customerList: async (q, all) => (may("customers", "billing", "payments", "repairs"), listCustomers(q, all)),
+  customerList: async (q, all, limit) => (may("customers", "billing", "payments", "repairs"), listCustomers(q, all, limit)),
   customerSave: async (c) => {
     const u = may("customers");
     const id = saveCustomer(c);
