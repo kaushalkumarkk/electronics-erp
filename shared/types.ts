@@ -560,7 +560,7 @@ export interface Api {
   purchaseList(from: string, to: string): Promise<PurchaseRow[]>;
   purchaseGet(id: number): Promise<PurchaseDetail | null>;
 
-  customerList(q: string, all: boolean): Promise<Customer[]>;
+  customerList(q: string, all: boolean, limit?: number): Promise<Customer[]>;
   customerSave(c: CustomerInput): Promise<number>;
   customerPrices(id: number): Promise<AgreedPrice[]>;
   customerPriceSave(customerId: number, productId: number, rate: number | null): Promise<void>;

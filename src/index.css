@@ -17,8 +17,9 @@ input[type="number"]::-webkit-inner-spin-button { opacity: 0.4; }
   .btn-primary { @apply btn bg-brand-600 text-white hover:bg-brand-700; }
   .btn-light { @apply btn border border-slate-300 bg-white text-slate-700 hover:bg-slate-50; }
   .btn-danger { @apply btn bg-rose-600 text-white hover:bg-rose-700; }
+  .pos-panel { @apply rounded-lg border border-slate-200 bg-white; }
   .card { @apply rounded-2xl border border-slate-200 bg-white shadow-sm; }
-  .th { @apply whitespace-nowrap px-2.5 py-2 text-left text-[10.5px] font-bold uppercase tracking-wide text-slate-500; }
+  .th { @apply whitespace-nowrap px-2.5 py-2.5 text-left text-[10.5px] font-bold uppercase tracking-wide text-slate-500; }
   .td { @apply px-2.5 py-2 text-sm; }
 }
 

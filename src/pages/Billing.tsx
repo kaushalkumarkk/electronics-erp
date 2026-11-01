@@ -1,4 +1,4 @@
-import { IconLock, IconPlus, IconPrinter, IconTrash, IconFileTypePdf } from "@tabler/icons-react";
+import { IconShoppingCart, IconLock, IconPlus, IconPrinter, IconTrash, IconFileTypePdf } from "@tabler/icons-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Customer, PartyPrice, PriceTier, SaleInput, SellableProduct, Serial, Settings } from "@shared/types";
 import { billTotals } from "@shared/pricing";
@@ -210,6 +210,13 @@ export function BillingPage() {
     }
   }
 
+  // a long bill keeps the newest item in view
+  const scroller = useRef<HTMLDivElement>(null);
+  const lineCount = lines.length;
+  useEffect(() => {
+    if (lineCount > 0) scroller.current?.scrollTo({ top: scroller.current.scrollHeight, behavior: "smooth" });
+  }, [lineCount]);
+
   // F2 search, F4 customer, F6 hold, F7 clear, F8 save, F9 save and print (same keys as the medical app)
   const keys = useRef<Record<string, () => void>>({});
   keys.current = {
@@ -232,32 +239,33 @@ export function BillingPage() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  const otherPrice = (l: Line) => (l.product ? (tier === "technician" ? l.product.customer_price : l.product.technician_price) : 0);
+  const qtyTotal = lines.reduce((s, l) => s + l.qty, 0);
+  const shortOfCash = !udhar && pay < totals.total && !party;
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3">
-      {/* top: the big search bar, like the medical bill screen */}
-      <div className="card shrink-0 border-2 border-brand-500 p-2">
-        <div className="flex items-center gap-3">
+    <div className="flex h-full min-h-0 min-w-0 flex-col gap-2">
+      {/* A. full-width product search */}
+      <div className="pos-panel shrink-0 border-2 border-brand-500 p-1.5">
+        <div className="flex items-center gap-2">
           <div className="min-w-0 flex-1" ref={searchRef}>
             <ProductSearch large sell autoFocus highlight={tier} onPick={addProduct} onMiss={(t) => void addBySerial(t)} placeholder="Search product, brand, model or scan barcode / IMEI…" />
           </div>
-          <button className="rounded-lg bg-slate-100 px-3 py-2 text-sm font-bold text-slate-700 hover:bg-slate-200" onClick={() => setHeldOpen(true)}>Held ({held.length})</button>
-          <kbd className="rounded-lg bg-slate-100 px-2.5 py-2 text-sm font-bold text-slate-600">F2</kbd>
+          <button className="h-10 rounded-md bg-slate-100 px-3 text-sm font-bold text-slate-700 hover:bg-slate-200" onClick={() => setHeldOpen(true)}>Held ({held.length})</button>
+          <kbd className="flex h-10 items-center rounded-md bg-slate-100 px-3 text-sm font-bold text-slate-600">F2</kbd>
         </div>
       </div>
-      <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-500">
-        {([["F2", "Search"], ["F3", "Udhar"], ["F4", "Customer"], ["F6", "Hold bill"], ["F7", "Clear bill"], ["F8", "Save only"], ["F9", "Save & print"]] as const).map(([k, l]) => (
-          <span key={k} className="flex items-center gap-1.5"><kbd className="rounded border border-slate-300 bg-white px-1.5 py-0.5 text-[11px] font-bold text-slate-700">{k}</kbd>{l}</span>
+
+      {/* shortcut hints, price type and quick actions */}
+      <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-slate-500">
+        {([["F2", "Search"], ["F3", "Udhar"], ["F4", "Customer"], ["F6", "Hold"], ["F7", "Clear"], ["F8", "Save"], ["F9", "Save & print"]] as const).map(([k, l]) => (
+          <span key={k} className="flex items-center gap-1"><kbd className="rounded border border-slate-300 bg-white px-1.5 py-px text-[11px] font-bold text-slate-700">{k}</kbd>{l}</span>
         ))}
-        <span>Enter adds the highlighted item</span>
-        <span className="ml-auto flex items-center gap-3">
-          <span className="font-semibold">{lines.length} item{lines.length === 1 ? "" : "s"} on this bill</span>
-          <button className="btn-light px-3 py-1.5 text-xs" onClick={addService}><IconPlus size={14} /> Service / labour</button>
-          <span className="flex items-center gap-1 rounded-xl bg-slate-100 p-1" title={canTier ? "" : "You do not have access to change the price type"}>
+        <span className="ml-auto flex items-center gap-2">
+          <button className="btn-light h-8 px-3 py-0 text-xs" onClick={addService}><IconPlus size={14} /> Service / labour</button>
+          <span className="flex items-center gap-0.5 rounded-md bg-slate-200/70 p-0.5" title={canTier ? "" : "You do not have access to change the price type"}>
             {(["customer", "technician"] as const).map((t) => (
               <button key={t} disabled={!canTier && tier !== t} onClick={() => canTier && setTier(t)}
-                className={`rounded-lg px-3 py-1 text-xs font-semibold transition ${tier === t ? "bg-brand-600 text-white shadow" : "text-slate-600 hover:bg-white"} ${!canTier ? "cursor-not-allowed" : ""}`}>
+                className={`h-7 rounded px-3 text-xs font-semibold transition ${tier === t ? "bg-brand-600 text-white shadow-sm" : "text-slate-600 hover:bg-white"} ${!canTier ? "cursor-not-allowed" : ""}`}>
                 {t === "customer" ? "Customer price" : "Technician price"}
               </button>
             ))}
@@ -266,112 +274,153 @@ export function BillingPage() {
         </span>
       </div>
 
-      {/* middle: the lines fill the screen and scroll on their own */}
-      <div className="card flex min-h-0 flex-1 flex-col overflow-hidden">
-        <div className="min-h-0 flex-1 overflow-auto">
-          <table className="w-full min-w-[900px]">
-            <thead className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50">
+      {/* B. full-width billing table: takes all the remaining height */}
+      <div className="pos-panel flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+        <div ref={scroller} className="min-h-0 flex-1 overflow-auto">
+          <table className="w-full min-w-[1000px] table-fixed">
+            <colgroup>
+              <col style={{ width: "4%" }} /><col style={{ width: "28%" }} /><col style={{ width: "15%" }} /><col style={{ width: "9%" }} />
+              <col style={{ width: "13%" }} /><col style={{ width: "8%" }} /><col style={{ width: "6%" }} /><col style={{ width: "13%" }} /><col style={{ width: "4%" }} />
+            </colgroup>
+            <thead className="sticky top-0 z-10 border-b-2 border-brand-600 bg-slate-100">
               <tr>
-                <th className="th w-10">#</th><th className="th">Item</th><th className="th w-28 text-right">Qty</th><th className="th w-40 text-right">Price (incl. GST)</th>
-                <th className="th w-24 text-right">Disc %</th><th className="th w-16 text-right">GST</th><th className="th w-32 text-right">Amount</th><th className="th w-10" />
+                <th className="th">#</th><th className="th">Item</th><th className="th">Brand / model</th><th className="th text-right">Qty</th>
+                <th className="th text-right">Price (incl. GST)</th><th className="th text-right">Disc %</th><th className="th text-right">GST</th><th className="th text-right">Amount</th><th className="th" />
               </tr>
             </thead>
             <tbody>
               {lines.length === 0 && (
-                <tr><td colSpan={8} className="px-4 py-24 text-center">
-                  <div className="text-base font-bold text-slate-500">No items yet</div>
-                  <div className="mt-1 text-sm text-slate-400">Search or scan a product above. The price follows the buyer: customers pay the customer price, technicians the technician price.</div>
+                <tr><td colSpan={9} className="px-4 py-24 text-center">
+                  <IconShoppingCart size={44} className="mx-auto mb-2 text-slate-300" stroke={1.4} />
+                  <div className="text-base font-bold text-slate-500">No items on this bill</div>
+                  <div className="mt-1 text-sm text-slate-400">Search or scan a product above. Customers pay the customer price, technicians the technician price.</div>
                 </td></tr>
               )}
               {lines.map((l, i) => {
                 const src = l.product ? prices[l.product.id]?.source : undefined;
                 return (
-                  <tr key={l.key} className="border-b border-slate-100 align-top">
+                  <tr key={l.key} className="border-b border-slate-100 align-top odd:bg-white even:bg-slate-50/60 hover:bg-brand-50/60">
                     <td className="td text-slate-400">{i + 1}</td>
                     <td className="td">
-                      {l.product ? <div className="font-semibold">{l.name}</div> : <input className="input" placeholder="Service / labour description" value={l.name} onChange={(e) => patch(l.key, { name: e.target.value })} />}
+                      {l.product ? <div className="font-semibold leading-snug">{l.name}</div> : <input className="input h-9" placeholder="Service / labour description" value={l.name} onChange={(e) => patch(l.key, { name: e.target.value })} />}
                       {l.product && (
                         <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] text-slate-500">
-                          <span>Customer {rupees(l.product.customer_price)}</span><span>·</span><span>Technician {l.product.technician_price > 0 ? rupees(l.product.technician_price) : "—"}</span>
                           {l.manual ? <Badge tone="amber">price changed</Badge> : src === "agreed" ? <Badge tone="green">agreed rate</Badge> : src === "technician" ? <Badge tone="blue">technician price</Badge> : null}
                           {l.product.track_serial && (
                             <button className="font-semibold text-brand-700 hover:underline" onClick={() => setSerialFor(l)}>{l.serials.length ? `S/N: ${l.serials.join(", ")}` : "Pick serial numbers"}</button>
                           )}
-                          {l.product.warranty_months > 0 && <span>· {l.product.warranty_months} mo warranty</span>}
+                          {l.product.warranty_months > 0 && <span>{l.product.warranty_months} mo warranty</span>}
                         </div>
                       )}
                     </td>
+                    <td className="td text-slate-600">
+                      {l.product ? <><div className="truncate">{l.product.brand || "—"}</div><div className="truncate text-[11px] text-slate-400">{l.product.model}</div></> : <span className="text-slate-400">Service</span>}
+                    </td>
                     <td className="td text-right">
-                      <input type="number" min={1} className="input w-24 text-right" disabled={!!l.product?.track_serial} value={l.qty || ""} max={l.product && !l.product.is_service ? l.product.available : undefined}
+                      <input type="number" min={1} className="input h-9 w-full text-right" disabled={!!l.product?.track_serial} value={l.qty || ""} max={l.product && !l.product.is_service ? l.product.available : undefined}
                         onChange={(e) => patch(l.key, { qty: Math.max(0, Math.floor(Number(e.target.value))) })} />
                       {l.product && !l.product.is_service && <div className="mt-0.5 text-[10px] text-slate-400">{l.product.available} in stock</div>}
                     </td>
                     <td className="td text-right">
-                      <input type="number" min={0} step="0.01" className="input w-36 text-right" disabled={!!l.product && !canEditPrice} value={l.unit_price}
+                      <input type="number" min={0} step="0.01" className="input h-9 w-full text-right" disabled={!!l.product && !canEditPrice} value={l.unit_price}
                         onChange={(e) => patch(l.key, { unit_price: Math.max(0, Number(e.target.value)), manual: true })} />
-                      {l.product && otherPrice(l) > 0 && <div className="mt-0.5 text-[10px] text-slate-400">{tier === "technician" ? "Customer" : "Technician"} price {rupees(otherPrice(l))}</div>}
+                      {l.product && <div className="mt-0.5 text-[10px] text-slate-400">Cust {rupees(l.product.customer_price)} · Tech {l.product.technician_price > 0 ? rupees(l.product.technician_price) : "—"}</div>}
                     </td>
-                    <td className="td text-right"><input type="number" min={0} max={100} className="input w-20 text-right" disabled={!canEditPrice} value={l.disc_pct || ""} onChange={(e) => patch(l.key, { disc_pct: Math.min(100, Math.max(0, Number(e.target.value))) })} /></td>
-                    <td className="td text-right text-slate-500">{l.gst_rate}%</td>
-                    <td className="td text-right font-semibold">{rupees(totals.lines[i]?.amount ?? 0)}</td>
-                    <td className="td"><button className="text-slate-400 hover:text-rose-600" onClick={() => setLines((ls) => ls.filter((x) => x.key !== l.key))}><IconTrash size={16} /></button></td>
+                    <td className="td text-right"><input type="number" min={0} max={100} className="input h-9 w-full text-right" disabled={!canEditPrice} value={l.disc_pct || ""} onChange={(e) => patch(l.key, { disc_pct: Math.min(100, Math.max(0, Number(e.target.value))) })} /></td>
+                    <td className="td pt-3 text-right text-slate-500">{l.gst_rate}%</td>
+                    <td className="td pt-3 text-right text-base font-bold text-slate-900">{rupees(totals.lines[i]?.amount ?? 0)}</td>
+                    <td className="td pt-3 text-center"><button className="text-slate-400 hover:text-rose-600" title="Remove" onClick={() => setLines((ls) => ls.filter((x) => x.key !== l.key))}><IconTrash size={16} /></button></td>
                   </tr>
                 );
               })}
             </tbody>
           </table>
         </div>
+        <div className="flex shrink-0 items-center justify-between border-t border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-500">
+          <span>{lines.length} item{lines.length === 1 ? "" : "s"} · {qtyTotal} unit{qtyTotal === 1 ? "" : "s"}</span>
+          <span>Prices include GST. Enter on the search box adds the highlighted item.</span>
+        </div>
       </div>
 
-      {/* bottom, always in view: buyer, payment, totals and save across the full width */}
-      <div className="card shrink-0 p-3">
-        <div className="grid grid-cols-12 gap-4">
-          <div className="col-span-12 space-y-2 lg:col-span-4 lg:border-r lg:border-slate-200 lg:pr-4">
-            <PartyPicker value={party} onChange={pickParty} />
-            {!party && (
+      {/* C. full-width bottom section: customer | payment | summary and actions */}
+      <div className="pos-panel shrink-0 p-3">
+        <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-[33fr_30fr_37fr]">
+          {/* customer details */}
+          <section className="min-w-0 space-y-2 lg:border-r lg:border-slate-200 lg:pr-4">
+            <div className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Customer</div>
+            <PartyPicker up value={party} onChange={pickParty} />
+            {party ? (
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md bg-slate-50 px-3 py-1.5 text-xs text-slate-600">
+                {party.phone && <span>{party.phone}</span>}
+                {party.credit_limit > 0 && <span>Credit limit {rupees(party.credit_limit)}</span>}
+                {party.balance > 0.005 && <span className="font-semibold text-amber-700">Owes {rupees(party.balance)}</span>}
+                {party.credit_limit > 0 && <span>Available {rupees(Math.max(0, party.credit_limit - party.balance))}</span>}
+              </div>
+            ) : (
               <div className="grid grid-cols-2 gap-2">
-                <input className="input py-1.5" placeholder="Customer name (optional)" value={walkName} onChange={(e) => setWalkName(e.target.value)} />
-                <input className="input py-1.5" placeholder="Phone (optional)" value={walkPhone} onChange={(e) => setWalkPhone(e.target.value)} />
+                <input className="input h-9" placeholder="Customer name (optional)" value={walkName} onChange={(e) => setWalkName(e.target.value)} />
+                <input className="input h-9" placeholder="Phone (optional)" value={walkPhone} onChange={(e) => setWalkPhone(e.target.value)} />
               </div>
             )}
-            <input className="input py-1.5" placeholder="Note on the bill (optional)" value={notes} onChange={(e) => setNotes(e.target.value)} />
-          </div>
+            <input className="input h-9" placeholder="Note on the bill (optional)" value={notes} onChange={(e) => setNotes(e.target.value)} />
+          </section>
 
-          <div className="col-span-12 grid grid-cols-2 content-start gap-2 lg:col-span-3 lg:border-r lg:border-slate-200 lg:pr-4">
+          {/* payment details */}
+          <section className="min-w-0 space-y-2 lg:border-r lg:border-slate-200 lg:pr-4">
+            <div className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Payment</div>
             <button
               type="button"
               onClick={toggleUdhar}
-              className={`col-span-2 flex items-center justify-between rounded-lg border-2 px-3 py-1.5 text-sm font-bold transition ${udhar ? "border-amber-500 bg-amber-50 text-amber-800" : "border-slate-200 text-slate-600 hover:bg-slate-50"}`}
+              className={`flex h-9 w-full items-center justify-between rounded-md border-2 px-3 text-sm font-bold transition ${udhar ? "border-amber-500 bg-amber-50 text-amber-800" : "border-slate-200 text-slate-600 hover:bg-slate-50"}`}
             >
               <span>{udhar ? "✓ Udhar (credit) is ON" : "Udhar (credit)"}</span>
               <kbd className="rounded bg-slate-200 px-1 text-[10px] text-slate-600">F3</kbd>
             </button>
-            <Field label="Payment by"><select className="input py-1.5" disabled={udhar} value={mode} onChange={(e) => setMode(e.target.value)}>{MODES.map((m) => <option key={m} value={m}>{m.toUpperCase()}</option>)}</select></Field>
-            <Field label="Received now (₹)"><input type="number" min={0} className="input py-1.5" disabled={udhar} value={udhar ? 0 : paid == null ? totals.total : paid} onChange={(e) => setPaid(Number(e.target.value))} /></Field>
-            {canEditPrice && <Field label="Bill discount (₹)" className="col-span-2"><input type="number" min={0} className="input py-1.5" value={flat || ""} onChange={(e) => setFlat(Math.max(0, Number(e.target.value)))} /></Field>}
-            {due > 0 && <div className={`col-span-2 rounded-lg px-3 py-1.5 text-xs font-semibold ${party ? "bg-amber-50 text-amber-800" : "bg-rose-50 text-rose-700"}`}>{party ? `${rupees(due)} goes on ${party.name}'s account${party.balance > 0.005 ? ` (already owes ${rupees(party.balance)})` : ""}` : "Pick a saved customer to keep a balance, or take full payment"}</div>}
-          </div>
-
-          <div className="col-span-12 flex items-stretch gap-4 lg:col-span-5">
-            <dl className="grid flex-1 content-center gap-0.5 text-sm">
-              <Row k="Taxable value" v={rupees(totals.taxable)} />
-              {interstate ? <Row k="IGST" v={rupees(totals.igst)} /> : <><Row k="CGST" v={rupees(totals.cgst)} /><Row k="SGST" v={rupees(totals.sgst)} /></>}
-              {flat > 0 && <Row k="Discount" v={`- ${rupees(flat)}`} />}
-              {totals.round_off !== 0 && <Row k="Round off" v={rupees(totals.round_off)} />}
-              <div className="mt-0.5 flex items-center justify-between"><dt className="text-slate-500">Items</dt><dd className="font-semibold">{lines.length} · <Badge tone={tier === "technician" ? "blue" : "slate"}>{tier === "technician" ? "Technician" : "Customer"}</Badge></dd></div>
-            </dl>
-            <div className="flex w-72 flex-col justify-between gap-2">
-              <div className="text-right"><div className="text-xs font-bold uppercase tracking-wide text-slate-500">Total</div><div className="text-2xl font-extrabold leading-tight text-brand-700">{rupees(totals.total)}</div></div>
-              <div className="grid grid-cols-2 gap-2">
-                <button className="btn-primary whitespace-nowrap px-2 py-1.5 text-xs" disabled={busy || !lines.length} onClick={() => void save(true)}><IconPrinter size={14} /> Save & print <kbd className="rounded bg-black/20 px-1 text-[9px]">F9</kbd></button>
-                <button className="btn-light whitespace-nowrap px-2 py-1.5 text-xs" disabled={busy || !lines.length} onClick={() => void save(false)}>Save only <kbd className="rounded bg-slate-200 px-1 text-[9px]">F8</kbd></button>
+            <div className="grid grid-cols-4 gap-1">
+              {MODES.map((m) => (
+                <button key={m} type="button" disabled={udhar} onClick={() => setMode(m)}
+                  className={`h-9 rounded-md border text-xs font-bold uppercase transition disabled:opacity-40 ${mode === m && !udhar ? "border-brand-600 bg-brand-600 text-white" : "border-slate-300 bg-white text-slate-600 hover:bg-slate-50"}`}>{m}</button>
+              ))}
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <Field label="Received now (₹)"><input type="number" min={0} className="input h-9" disabled={udhar} value={udhar ? 0 : paid == null ? totals.total : paid} onChange={(e) => setPaid(Number(e.target.value))} /></Field>
+              <Field label="Bill discount (₹)"><input type="number" min={0} className="input h-9" disabled={!canEditPrice} value={flat || ""} onChange={(e) => setFlat(Math.max(0, Number(e.target.value)))} /></Field>
+            </div>
+            {due > 0 && (
+              <div className={`rounded-md px-3 py-1.5 text-xs font-semibold ${party ? "bg-amber-50 text-amber-800" : "bg-rose-50 text-rose-700"}`}>
+                {party ? `${rupees(due)} goes on ${party.name}'s account${party.balance > 0.005 ? ` (already owes ${rupees(party.balance)})` : ""}` : "Pick a saved customer to keep a balance, or take full payment"}
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                <button className="btn-light whitespace-nowrap px-2 py-1 text-xs" disabled={!lines.length} onClick={holdBill}>Hold <kbd className="rounded bg-slate-200 px-1 text-[9px]">F6</kbd></button>
-                <button className="btn-light whitespace-nowrap px-2 py-1 text-xs" disabled={!lines.length && !party} onClick={() => void clearBill()}>Clear <kbd className="rounded bg-slate-200 px-1 text-[9px]">F7</kbd></button>
+            )}
+            {shortOfCash && <div className="text-xs font-semibold text-rose-600">Received amount is less than the total.</div>}
+          </section>
+
+          {/* bill summary and actions */}
+          <section className="min-w-0">
+            <div className="grid grid-cols-[1fr_auto] gap-4">
+              <dl className="grid content-start gap-0.5 text-sm">
+                <div className="mb-1 text-[11px] font-bold uppercase tracking-wide text-slate-500">Bill summary</div>
+                <Row k="Taxable value" v={rupees(totals.taxable)} />
+                {interstate ? <Row k="IGST" v={rupees(totals.igst)} /> : <><Row k="CGST" v={rupees(totals.cgst)} /><Row k="SGST" v={rupees(totals.sgst)} /></>}
+                {flat > 0 && <Row k="Discount" v={`- ${rupees(flat)}`} />}
+                {totals.round_off !== 0 && <Row k="Round off" v={rupees(totals.round_off)} />}
+                <div className="mt-1 flex items-center justify-between"><dt className="text-slate-500">Price used</dt><dd><Badge tone={tier === "technician" ? "blue" : "slate"}>{tier === "technician" ? "Technician" : "Customer"}</Badge></dd></div>
+              </dl>
+              <div className="flex min-w-[11rem] flex-col items-end justify-center rounded-md border border-brand-200 bg-brand-50 px-4 py-2">
+                <div className="text-[11px] font-bold uppercase tracking-wide text-brand-800">Grand total</div>
+                <div className="text-3xl font-extrabold leading-tight text-brand-700">{rupees(totals.total)}</div>
               </div>
             </div>
-          </div>
+            <div className="mt-3 space-y-2">
+              <button className="btn-primary h-11 w-full text-base" disabled={busy || !lines.length} onClick={() => void save(true)}>
+                <IconPrinter size={18} /> {busy ? "Saving…" : "Save & print"} <kbd className="rounded bg-black/20 px-1.5 text-[10px]">F9</kbd>
+              </button>
+              <div className="grid grid-cols-3 gap-2">
+                <button className="btn-light h-9 px-2 text-xs" disabled={busy || !lines.length} onClick={() => void save(false)}>Save only <kbd className="rounded bg-slate-200 px-1 text-[9px]">F8</kbd></button>
+                <button className="btn-light h-9 px-2 text-xs" disabled={!lines.length} onClick={holdBill}>Hold bill <kbd className="rounded bg-slate-200 px-1 text-[9px]">F6</kbd></button>
+                <button className="btn-light h-9 px-2 text-xs text-rose-600" disabled={!lines.length && !party} onClick={() => void clearBill()}>Clear bill <kbd className="rounded bg-slate-200 px-1 text-[9px]">F7</kbd></button>
+              </div>
+            </div>
+          </section>
         </div>
       </div>
 

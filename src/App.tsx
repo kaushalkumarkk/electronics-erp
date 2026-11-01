@@ -402,7 +402,7 @@ function Shortcuts({ canBill }: { canBill: boolean }) {
 function Main({ screens }: { screens: typeof SCREENS }) {
   const location = useLocation();
   return (
-    <main className={`min-w-0 flex-1 p-5 ${location.pathname === "/billing" ? "overflow-hidden" : "overflow-y-auto"}`}>
+    <main className={`min-w-0 flex-1 ${location.pathname === "/billing" ? "overflow-hidden p-3" : "overflow-y-auto p-5"}`}>
               <LicenceBanner />
               {screens.length === 0 ? (
                 <div className="flex h-full items-center justify-center text-center text-slate-500">
