@@ -37,16 +37,6 @@ export function ProductsPage() {
     return () => clearTimeout(t);
   }, [load]);
 
-  async function importCsv() {
-    try {
-      const r = await api.productCsvRead();
-      if (r.error) return toast.error(r.error);
-      if (r.ok) setReview(r);
-    } catch (e) {
-      toast.fromError(e);
-    }
-  }
-
   function exportCsv() {
     const head = ["Name", "Brand", "Model", "Category", "SKU", "Barcode", "GST %", "Customer price", "Technician price", "Stock", "Warranty (months)"];
     void api.exportCsv("products.csv", [head, ...rows.map((p) => [p.name, p.brand, p.model, p.category, p.sku, p.barcode, p.gst_rate, p.customer_price, p.technician_price, p.qty, p.warranty_months])]);
@@ -61,7 +51,6 @@ export function ProductsPage() {
         actions={
           <>
             <button className="btn-light" onClick={exportCsv}><IconDownload size={16} /> CSV</button>
-            {canEdit && <button className="btn-light" onClick={() => void importCsv()}><IconFileSpreadsheet size={16} /> Import CSV</button>}
             {canEdit && <button className="btn-primary" onClick={() => setEdit(blank())}><IconPlus size={16} /> Add product</button>}
           </>
         }
@@ -71,7 +60,6 @@ export function ProductsPage() {
           <IconSearch size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input data-search className="input pl-9" placeholder="Search name, brand, model, SKU, barcode, category" value={q} onChange={(e) => setQ(e.target.value)} />
         </div>
-        {canEdit && <button className="text-xs font-semibold text-brand-700 hover:underline" onClick={() => void api.productTemplate()}>Download CSV template</button>}
         <label className="flex items-center gap-2 text-sm text-slate-600"><input type="checkbox" checked={all} onChange={(e) => setAll(e.target.checked)} /> Show switched-off</label>
       </div>
       <div className="card overflow-x-auto">
@@ -105,17 +93,27 @@ export function ProductsPage() {
         <Pager {...paged} />
       </div>
       {review && <ProductImportReview result={review} onClose={() => setReview(null)} onDone={() => { setReview(null); void load(); }} />}
-      {edit && <ProductForm initial={edit} categories={categories} canCost={canCost} onClose={() => setEdit(null)} onSaved={() => { setEdit(null); void load(); }} />}
+      {edit && <ProductForm initial={edit} categories={categories} canCost={canCost} onClose={() => setEdit(null)} onSaved={() => { setEdit(null); void load(); }} onImport={(r) => { setEdit(null); setReview(r); }} />}
     </div>
   );
 }
 
-function ProductForm({ initial, categories, canCost, onClose, onSaved }: { initial: ProductInput; categories: string[]; canCost: boolean; onClose: () => void; onSaved: () => void }) {
+function ProductForm({ initial, categories, canCost, onClose, onSaved, onImport }: { initial: ProductInput; categories: string[]; canCost: boolean; onClose: () => void; onSaved: () => void; onImport: (r: ProductImportResult) => void }) {
   const [p, setP] = useState<ProductInput>(initial);
   const [busy, setBusy] = useState(false);
   const set = <K extends keyof ProductInput>(k: K, v: ProductInput[K]) => setP((x) => ({ ...x, [k]: v }));
   const num = (k: keyof ProductInput) => ({ type: "number" as const, min: 0, className: "input", value: (p[k] as number) || "", onChange: (e: React.ChangeEvent<HTMLInputElement>) => set(k, Number(e.target.value) as never) });
   const margin = p.customer_price > 0 && p.technician_price > 0 ? Math.round(((p.customer_price - p.technician_price) / p.customer_price) * 100) : null;
+
+  async function pickCsv() {
+    try {
+      const r = await api.productCsvRead();
+      if (r.error) return toast.error(r.error);
+      if (r.ok) onImport(r);
+    } catch (e) {
+      toast.fromError(e);
+    }
+  }
 
   async function save() {
     setBusy(true);
@@ -134,6 +132,17 @@ function ProductForm({ initial, categories, canCost, onClose, onSaved }: { initi
     <Modal title={p.id ? "Edit product" : "Add product"} onClose={onClose} wide
       footer={<><button className="btn-light" onClick={onClose}>Cancel</button><button className="btn-primary" disabled={busy} onClick={() => void save()}>Save</button></>}>
       <div onKeyDown={(e) => enterToNext(e, () => void save())}>
+      {!p.id && (
+        <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-dashed border-brand-300 bg-brand-50/60 px-4 py-3">
+          <IconFileSpreadsheet size={22} className="text-brand-600" />
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-bold text-slate-800">Adding many products?</div>
+            <div className="text-xs text-slate-500">Import them all from a CSV file. Start from the sample, fill it in Excel, then import it.</div>
+          </div>
+          <button type="button" className="btn-light" onClick={() => void api.productTemplate()}><IconDownload size={16} /> Sample CSV</button>
+          <button type="button" className="btn-primary" onClick={() => void pickCsv()}><IconFileSpreadsheet size={16} /> Import CSV</button>
+        </div>
+      )}
       <div className="grid gap-3 md:grid-cols-3">
         <Field label="Name *" className="md:col-span-2"><input className="input" autoFocus value={p.name} onChange={(e) => set("name", e.target.value)} /></Field>
         <Field label="Category"><input className="input" list="cats" value={p.category} onChange={(e) => set("category", e.target.value)} /><datalist id="cats">{categories.map((c) => <option key={c} value={c} />)}</datalist></Field>
