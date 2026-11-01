@@ -1,0 +1,8 @@
+node_modules
+dist
+dist-electron
+release
+*.tsbuildinfo
+tools/private-key.pem
+tools/licences.json
+*.pem

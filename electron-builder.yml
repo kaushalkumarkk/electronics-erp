@@ -1,0 +1,22 @@
+appId: com.devnexa.electronicserp
+productName: Electronics Shop ERP
+directories:
+  output: release
+  buildResources: build
+files:
+  - dist/**
+  - dist-electron/**
+  - package.json
+npmRebuild: false
+asarUnpack:
+  - "**/*.node"
+win:
+  icon: build/icon.ico
+  target:
+    - target: nsis
+      arch: [x64]
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  shortcutName: Electronics Shop ERP
