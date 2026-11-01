@@ -5,7 +5,8 @@ import electron from "./electronRequire";
 import { activityList, logActivity } from "./activity";
 import { authState, changeOwnPassword, listUsers, login, logout, permissionsFor, requireUser, resetPassword, saveUser, setUserPermissions, setupSuperadmin, userPermissions } from "./auth";
 import { autoBackup, backupNow, backupStatus, backupToFolder, chooseFolder, exportCsv, restoreBackup } from "./backup";
-import { customerLedger, customerPrices, deletePayment, duesList, listCustomers, partyPrices, saveCustomer, saveCustomerPrice, savePayment } from "./customers";
+import { purchaseCsvRead, purchasePdfPick, purchaseTableRead, purchaseTemplate } from "./purchaseImport";
+import { udharBills, customerLedger, customerPrices, deletePayment, duesList, listCustomers, partyPrices, saveCustomer, saveCustomerPrice, savePayment } from "./customers";
 import { getDb } from "./db";
 import { addLicence, issueLicence, listLicences, registerStatus, removeLicence } from "./licenceRegister";
 import { activateLicence, licenceGate, licenseStatus } from "./license";
@@ -123,6 +124,11 @@ const handlers: Api = {
     return id;
   },
   purchaseList: async (from, to) => (may("purchases"), listPurchases(from, to)),
+  purchaseCsvRead: async () => (may("purchases"), purchaseCsvRead()),
+  purchasePdfPick: async () => (may("purchases"), purchasePdfPick()),
+  purchaseTableRead: async (table, name) => (may("purchases"), purchaseTableRead(table, name)),
+  purchaseTemplate: async () => (may("purchases"), purchaseTemplate()),
+  udharBills: async () => (may("payments"), udharBills()),
   purchaseGet: async (id) => (may("purchases"), getPurchase(id)),
 
   customerList: async (q, all) => (may("customers", "billing", "payments", "repairs"), listCustomers(q, all)),

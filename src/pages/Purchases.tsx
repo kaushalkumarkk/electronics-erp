@@ -1,10 +1,12 @@
-import { IconPlus, IconTrash, IconTruck } from "@tabler/icons-react";
+import { IconFileSpreadsheet, IconFileTypePdf, IconPlus, IconTrash, IconTruck } from "@tabler/icons-react";
 import { useCallback, useEffect, useState } from "react";
-import type { Product, PurchaseDetail, PurchaseRow, Supplier } from "@shared/types";
+import type { Product, PurchaseDetail, PurchaseImportResult, PurchaseRow, Supplier } from "@shared/types";
 import { r2 } from "@shared/pricing";
 import { api } from "@/api";
 import { Badge, Empty, Field, Modal, PageHeader, Pager, toast, usePaged, DateRange } from "@/components/ui";
 import { ProductSearch } from "@/components/Pickers";
+import { ImportReview, type ImportedLine } from "@/components/PurchaseImport";
+import { readInvoicePdf } from "@/lib/pdfInvoice";
 import { daysAgo, dateOnly, rupees, today } from "@/lib/format";
 
 interface PLine {
@@ -75,6 +77,53 @@ function NewPurchase({ onClose, onSaved }: { onClose: () => void; onSaved: () =>
   const [notes, setNotes] = useState("");
   const [lines, setLines] = useState<PLine[]>([]);
   const [busy, setBusy] = useState(false);
+  const [review, setReview] = useState<PurchaseImportResult | null>(null);
+  const [reading, setReading] = useState("");
+
+  // lines from the review go onto the purchase; a product already on it gets the quantity and serial numbers added
+  function addImported(list: ImportedLine[]) {
+    setLines((ls) => {
+      const out = [...ls];
+      for (const l of list) {
+        const at = out.findIndex((x) => x.product.id === l.product.id);
+        if (at >= 0) out[at] = { ...out[at], qty: out[at].qty + l.qty, rate: l.rate, serials: [out[at].serials, l.serials].filter(Boolean).join("\n") };
+        else out.push(l);
+      }
+      return out;
+    });
+    setReview(null);
+  }
+
+  async function importCsv() {
+    try {
+      const r = await api.purchaseCsvRead();
+      if (r.error) return toast.error(r.error);
+      if (r.ok) setReview(r);
+    } catch (e) {
+      toast.fromError(e);
+    }
+  }
+
+  async function importPdf() {
+    try {
+      const picked = await api.purchasePdfPick();
+      if (!picked.ok || !picked.data) return;
+      setReading("Reading the PDF…");
+      const inv = await readInvoicePdf(picked.data, setReading);
+      const r = await api.purchaseTableRead(inv.table, picked.fileName ?? "invoice.pdf");
+      if (r.error) return toast.error(r.error);
+      // the invoice number, date and supplier printed on the PDF fill the form
+      if (inv.invoiceNo && !invoiceNo) setInvoiceNo(inv.invoiceNo);
+      if (inv.invoiceDate) setDate(inv.invoiceDate);
+      const known = suppliers.find((s) => s.gstin && inv.gstins.includes(s.gstin.toUpperCase()));
+      if (known) setSupplierId(known.id);
+      setReview(r);
+    } catch (e) {
+      toast.fromError(e);
+    } finally {
+      setReading("");
+    }
+  }
 
   useEffect(() => {
     api.supplierList().then((s) => { setSuppliers(s); if (s[0]) setSupplierId(s[0].id); }).catch(toast.fromError);
@@ -130,6 +179,12 @@ function NewPurchase({ onClose, onSaved }: { onClose: () => void; onSaved: () =>
         <Field label="Invoice date"><input type="date" className="input" value={date} onChange={(e) => setDate(e.target.value)} /></Field>
         <label className="flex items-end gap-2 pb-2 text-sm"><input type="checkbox" checked={paid} onChange={(e) => setPaid(e.target.checked)} /> Already paid to supplier</label>
       </div>
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        <button className="btn-light" onClick={() => void importCsv()}><IconFileSpreadsheet size={16} /> Import CSV</button>
+        <button className="btn-light" disabled={!!reading} onClick={() => void importPdf()}><IconFileTypePdf size={16} /> {reading || "Import PDF invoice"}</button>
+        <button className="text-xs font-semibold text-brand-700 hover:underline" onClick={() => void api.purchaseTemplate()}>Download CSV template</button>
+        <span className="text-xs text-slate-400">The list below updates as soon as you confirm what was read.</span>
+      </div>
       <div className="my-4">
         <ProductSearch placeholder="Search a product to add" onPick={(p) => !lines.some((l) => l.product.id === p.id) && setLines((ls) => [...ls, { product: p, qty: 1, rate: 0, gst_rate: p.gst_rate, customer_price: p.customer_price, technician_price: p.technician_price, serials: "" }])} filter={(p) => !p.is_service} />
       </div>
@@ -164,6 +219,7 @@ function NewPurchase({ onClose, onSaved }: { onClose: () => void; onSaved: () =>
           <p className="mt-2 text-xs text-slate-500">The selling prices are filled from the product. Change them here if the new stock should sell at a different price; both are saved on the product.</p>
         </div>
       )}
+      {review && <ImportReview result={review} onClose={() => setReview(null)} onAdd={addImported} />}
       <Field label="Notes" className="mt-3"><input className="input" value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
     </Modal>
   );

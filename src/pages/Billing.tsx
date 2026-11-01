@@ -71,6 +71,8 @@ export function BillingPage() {
     }
   };
   const [paid, setPaid] = useState<number | null>(null); // null = pay in full
+  // udhar: the whole bill goes on the customer's account, nothing is taken now
+  const [udhar, setUdhar] = useState(false);
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
   const [serialFor, setSerialFor] = useState<Line | null>(null);
@@ -85,6 +87,7 @@ export function BillingPage() {
   // choosing a saved party switches to their price type (a technician is billed at the technician price)
   function pickParty(c: Customer | null) {
     setParty(c);
+    if (!c) setUdhar(false);
     setTier(c ? c.type : settings?.default_tier ?? "customer");
     if (!c) setPaid(null);
   }
@@ -139,8 +142,17 @@ export function BillingPage() {
     () => billTotals(lines.map((l) => ({ unit_price: l.unit_price, qty: l.qty, disc_pct: l.disc_pct, gst_rate: l.gst_rate })), flat, interstate),
     [lines, flat, interstate]
   );
-  const pay = paid == null ? totals.total : Math.min(Math.max(0, paid), totals.total);
+  const pay = udhar ? 0 : paid == null ? totals.total : Math.min(Math.max(0, paid), totals.total);
   const due = totals.total - pay;
+
+  function toggleUdhar() {
+    if (!udhar && !party) {
+      toast.error("Udhar needs a saved customer. Pick one (F4) or add a new one.");
+      document.querySelector<HTMLInputElement>("input[data-party]")?.focus();
+      return;
+    }
+    setUdhar((u) => !u);
+  }
 
   function saveHeld(list: HeldBill[]) {
     setHeld(list);
@@ -169,7 +181,7 @@ export function BillingPage() {
   }
 
   function reset() {
-    setLines([]); setFlat(0); setPaid(null); setNotes(""); setWalkName(""); setWalkPhone("");
+    setLines([]); setFlat(0); setPaid(null); setNotes(""); setWalkName(""); setWalkPhone(""); setUdhar(false);
     pickParty(null);
   }
 
@@ -202,6 +214,7 @@ export function BillingPage() {
   const keys = useRef<Record<string, () => void>>({});
   keys.current = {
     F2: () => document.querySelector<HTMLInputElement>("input[data-search]")?.focus(),
+    F3: toggleUdhar,
     F4: () => document.querySelector<HTMLInputElement>("input[data-party]")?.focus(),
     F6: holdBill,
     F7: () => void clearBill(),
@@ -234,7 +247,7 @@ export function BillingPage() {
         </div>
       </div>
       <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-500">
-        {([["F2", "Search"], ["F4", "Customer"], ["F6", "Hold bill"], ["F7", "Clear bill"], ["F8", "Save only"], ["F9", "Save & print"]] as const).map(([k, l]) => (
+        {([["F2", "Search"], ["F3", "Udhar"], ["F4", "Customer"], ["F6", "Hold bill"], ["F7", "Clear bill"], ["F8", "Save only"], ["F9", "Save & print"]] as const).map(([k, l]) => (
           <span key={k} className="flex items-center gap-1.5"><kbd className="rounded border border-slate-300 bg-white px-1.5 py-0.5 text-[11px] font-bold text-slate-700">{k}</kbd>{l}</span>
         ))}
         <span>Enter adds the highlighted item</span>
@@ -325,10 +338,18 @@ export function BillingPage() {
           </div>
 
           <div className="col-span-12 grid grid-cols-2 content-start gap-2 lg:col-span-3 lg:border-r lg:border-slate-200 lg:pr-4">
-            <Field label="Payment by"><select className="input py-1.5" value={mode} onChange={(e) => setMode(e.target.value)}>{MODES.map((m) => <option key={m} value={m}>{m.toUpperCase()}</option>)}</select></Field>
-            <Field label="Received now (₹)"><input type="number" min={0} className="input py-1.5" value={paid == null ? totals.total : paid} onChange={(e) => setPaid(Number(e.target.value))} /></Field>
+            <button
+              type="button"
+              onClick={toggleUdhar}
+              className={`col-span-2 flex items-center justify-between rounded-lg border-2 px-3 py-1.5 text-sm font-bold transition ${udhar ? "border-amber-500 bg-amber-50 text-amber-800" : "border-slate-200 text-slate-600 hover:bg-slate-50"}`}
+            >
+              <span>{udhar ? "✓ Udhar (credit) is ON" : "Udhar (credit)"}</span>
+              <kbd className="rounded bg-slate-200 px-1 text-[10px] text-slate-600">F3</kbd>
+            </button>
+            <Field label="Payment by"><select className="input py-1.5" disabled={udhar} value={mode} onChange={(e) => setMode(e.target.value)}>{MODES.map((m) => <option key={m} value={m}>{m.toUpperCase()}</option>)}</select></Field>
+            <Field label="Received now (₹)"><input type="number" min={0} className="input py-1.5" disabled={udhar} value={udhar ? 0 : paid == null ? totals.total : paid} onChange={(e) => setPaid(Number(e.target.value))} /></Field>
             {canEditPrice && <Field label="Bill discount (₹)" className="col-span-2"><input type="number" min={0} className="input py-1.5" value={flat || ""} onChange={(e) => setFlat(Math.max(0, Number(e.target.value)))} /></Field>}
-            {due > 0 && <div className={`col-span-2 rounded-lg px-3 py-1.5 text-xs font-semibold ${party ? "bg-amber-50 text-amber-800" : "bg-rose-50 text-rose-700"}`}>{party ? `${rupees(due)} goes on ${party.name}'s account` : "Pick a saved customer to keep a balance, or take full payment"}</div>}
+            {due > 0 && <div className={`col-span-2 rounded-lg px-3 py-1.5 text-xs font-semibold ${party ? "bg-amber-50 text-amber-800" : "bg-rose-50 text-rose-700"}`}>{party ? `${rupees(due)} goes on ${party.name}'s account${party.balance > 0.005 ? ` (already owes ${rupees(party.balance)})` : ""}` : "Pick a saved customer to keep a balance, or take full payment"}</div>}
           </div>
 
           <div className="col-span-12 flex items-stretch gap-4 lg:col-span-5">
@@ -340,14 +361,14 @@ export function BillingPage() {
               <div className="mt-0.5 flex items-center justify-between"><dt className="text-slate-500">Items</dt><dd className="font-semibold">{lines.length} · <Badge tone={tier === "technician" ? "blue" : "slate"}>{tier === "technician" ? "Technician" : "Customer"}</Badge></dd></div>
             </dl>
             <div className="flex w-72 flex-col justify-between gap-2">
-              <div className="text-right"><div className="text-xs font-bold uppercase tracking-wide text-slate-500">Total</div><div className="text-3xl font-extrabold leading-tight text-brand-700">{rupees(totals.total)}</div></div>
+              <div className="text-right"><div className="text-xs font-bold uppercase tracking-wide text-slate-500">Total</div><div className="text-2xl font-extrabold leading-tight text-brand-700">{rupees(totals.total)}</div></div>
               <div className="grid grid-cols-2 gap-2">
-                <button className="btn-primary py-2.5" disabled={busy || !lines.length} onClick={() => void save(true)}><IconPrinter size={16} /> Save & print <kbd className="rounded bg-black/20 px-1 text-[10px]">F9</kbd></button>
-                <button className="btn-light py-2.5" disabled={busy || !lines.length} onClick={() => void save(false)}>Save only <kbd className="rounded bg-slate-200 px-1 text-[10px]">F8</kbd></button>
+                <button className="btn-primary whitespace-nowrap px-2 py-1.5 text-xs" disabled={busy || !lines.length} onClick={() => void save(true)}><IconPrinter size={14} /> Save & print <kbd className="rounded bg-black/20 px-1 text-[9px]">F9</kbd></button>
+                <button className="btn-light whitespace-nowrap px-2 py-1.5 text-xs" disabled={busy || !lines.length} onClick={() => void save(false)}>Save only <kbd className="rounded bg-slate-200 px-1 text-[9px]">F8</kbd></button>
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <button className="btn-light py-1.5" disabled={!lines.length} onClick={holdBill}>Hold <kbd className="rounded bg-slate-200 px-1 text-[10px]">F6</kbd></button>
-                <button className="btn-light py-1.5" disabled={!lines.length && !party} onClick={() => void clearBill()}>Clear <kbd className="rounded bg-slate-200 px-1 text-[10px]">F7</kbd></button>
+                <button className="btn-light whitespace-nowrap px-2 py-1 text-xs" disabled={!lines.length} onClick={holdBill}>Hold <kbd className="rounded bg-slate-200 px-1 text-[9px]">F6</kbd></button>
+                <button className="btn-light whitespace-nowrap px-2 py-1 text-xs" disabled={!lines.length && !party} onClick={() => void clearBill()}>Clear <kbd className="rounded bg-slate-200 px-1 text-[9px]">F7</kbd></button>
               </div>
             </div>
           </div>

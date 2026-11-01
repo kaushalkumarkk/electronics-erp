@@ -1,4 +1,4 @@
-import type { AgreedPrice, Customer, CustomerInput, DueRow, LedgerRow, PartyPrice, PriceTier } from "@shared/types";
+import type { UdharBill, AgreedPrice, Customer, CustomerInput, DueRow, LedgerRow, PartyPrice, PriceTier } from "@shared/types";
 import { resolvePrice } from "@shared/pricing";
 import { getDb } from "./db";
 import { UserError, r2, todayLocal } from "./util";
@@ -144,4 +144,19 @@ export function duesList(): DueRow[] {
     )
     .all() as DueRow[];
   return rows.filter((r) => r.balance > 0.005).map((r) => ({ ...r, balance: r2(r.balance) })).sort((a, b) => b.balance - a.balance);
+}
+
+/** Every bill that still has money owed on it (the udhar tab), oldest first. The part of a return set against the account counts as paid. */
+export function udharBills(): UdharBill[] {
+  const rows = getDb()
+    .prepare(
+      `select s.id as sale_id, s.bill_no, s.bill_date, s.customer_id, s.customer_name, s.customer_phone as phone, s.tier, s.total, s.paid,
+              s.total - s.paid - coalesce((select sum(r.to_account) from sale_returns r where r.sale_id = s.id), 0) as due
+       from sales s where s.customer_id is not null and s.total > s.paid order by s.bill_date`
+    )
+    .all() as (Omit<UdharBill, "days"> & { due: number })[];
+  const today = Date.parse(todayLocal() + "T00:00:00Z");
+  return rows
+    .filter((r) => r.due > 0.005)
+    .map((r) => ({ ...r, due: r2(r.due), days: Math.max(0, Math.round((today - Date.parse(r.bill_date.slice(0, 10) + "T00:00:00Z")) / 86_400_000)) }));
 }
