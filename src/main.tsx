@@ -8,3 +8,9 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
     <App />
   </React.StrictMode>
 );
+
+// typing in a number box replaces what is there, so nobody has to delete a 0 first
+document.addEventListener("focusin", (e) => {
+  const t = e.target;
+  if (t instanceof HTMLInputElement && t.type === "number") t.select();
+});

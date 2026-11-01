@@ -48,7 +48,7 @@ export function StockPage() {
         </div>
         <div className="relative flex-1">
           <IconSearch size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input className="input pl-9" placeholder="Search" value={q} onChange={(e) => setQ(e.target.value)} />
+          <input data-search className="input pl-9" placeholder="Search" value={q} onChange={(e) => setQ(e.target.value)} />
         </div>
       </div>
       <div className="card overflow-x-auto">
@@ -140,6 +140,7 @@ function Adjust({ row, onClose, onSaved }: { row: StockRow; onClose: () => void;
 
 function History({ row, onClose }: { row: StockRow; onClose: () => void }) {
   const [moves, setMoves] = useState<StockMove[]>([]);
+  const paged = usePaged(moves);
   useEffect(() => {
     api.stockHistory(row.id).then(setMoves).catch(toast.fromError);
   }, [row.id]);
@@ -148,13 +149,14 @@ function History({ row, onClose }: { row: StockRow; onClose: () => void }) {
       <table className="w-full">
         <thead><tr><th className="th">When</th><th className="th">What</th><th className="th">Ref</th><th className="th text-right">Qty</th><th className="th">Note</th></tr></thead>
         <tbody>
-          {moves.map((m, i) => (
+          {paged.items.map((m, i) => (
             <tr key={i} className="border-b border-slate-100"><td className="td">{dateTime(m.date)}</td><td className="td capitalize">{m.kind}</td><td className="td">{m.ref}</td>
               <td className={`td text-right font-semibold ${m.qty < 0 ? "text-rose-600" : "text-emerald-700"}`}>{m.qty > 0 ? "+" : ""}{m.qty}</td><td className="td text-slate-500">{m.note}</td></tr>
           ))}
         </tbody>
       </table>
       {moves.length === 0 && <Empty text="No movement yet" />}
+      <Pager {...paged} />
     </Modal>
   );
 }

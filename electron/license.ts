@@ -7,7 +7,7 @@ import { createFirstOwner } from "./auth";
 import { getDb } from "./db";
 import { todayLocal, UserError } from "./util";
 
-/** DevNexa signs a licence key for each shop with its private key (tools/licence.mjs, or Licences in the app on DevNexa's own
+/** The vendor signs a licence key for each shop with its private key (tools/licence.mjs, or Licences in the app on the vendor's own
  * computer); the app only holds the public half, so a shop can check a key but never make one.
  *
  * There is no trial: without a valid key the whole app is locked, and a key stops working on its expiry date (a yearly
@@ -19,7 +19,7 @@ MCowBQYDK2VwAyEApIkOqTr8cjajgPKZeG5lz8fyj/+508GAycI0snnC100=
 
 export interface Payload {
   v: 1;
-  /** Unique licence number, e.g. DNX-2026-0007. Keys made before licence numbers existed have none. */
+  /** Unique licence number, e.g. ESE-2026-0007. Keys made before licence numbers existed have none. */
   id?: string;
   shop: string;
   machine: string; // "ANY" or a Machine ID
@@ -112,7 +112,7 @@ export function licenseStatus(): LicenseStatus {
   const machine = machineId();
   const none = (message: string): LicenseStatus => ({ state: "none", licensee: "", licence_id: "", machine_id: machine, issued: "", expires: null, days_left: null, message });
   const stored = getSetting("licence_key");
-  if (!stored) return none("This copy is not licensed yet. Enter the licence key DevNexa gave you.");
+  if (!stored) return none("This copy is not licensed yet. Enter the licence key your software provider gave you.");
   const v = verifyLicence(stored);
   if (!v.ok) return none(v.error);
   const { shop, expires, issued, id } = v.payload;
@@ -121,17 +121,17 @@ export function licenseStatus(): LicenseStatus {
     const left = expires ? dayNumber(expires) - dayNumber(today) : null;
     return {
       ...base, state: "licensed", days_left: left,
-      message: !expires ? `Licensed to ${shop}.` : left! <= 30 ? `Licence ends in ${left} day${left === 1 ? "" : "s"} (${expires}). Ask DevNexa to renew it before then.` : `Licensed to ${shop} until ${expires}.`,
+      message: !expires ? `Licensed to ${shop}.` : left! <= 30 ? `Licence ends in ${left} day${left === 1 ? "" : "s"} (${expires}). Ask your software provider to renew it before then.` : `Licensed to ${shop} until ${expires}.`,
     };
   }
-  return { ...base, state: "expired", days_left: 0, message: `The licence ended on ${expires}. Ask DevNexa for a new licence key to carry on.` };
+  return { ...base, state: "expired", days_left: 0, message: `The licence ended on ${expires}. Ask your software provider for a new licence key to carry on.` };
 }
 
 export function activateLicence(key: string): LicenseStatus {
   const v = verifyLicence(key);
   if (!v.ok) throw new UserError(v.error);
   // an ended key must never replace the one that is working
-  if (v.payload.expires && v.payload.expires < trustedToday()) throw new UserError(`This key ended on ${v.payload.expires}. Ask DevNexa for a current one.`);
+  if (v.payload.expires && v.payload.expires < trustedToday()) throw new UserError(`This key ended on ${v.payload.expires}. Ask your software provider for a current one.`);
   // a sold copy starts on the sign-in screen: the owner's login named in the key is made now (fresh install only)
   if (v.payload.owner) createFirstOwner(v.payload.owner);
   putSetting("licence_key", key.trim());
@@ -149,5 +149,5 @@ export function licenceGate(request: string): { ok: false; code: "licence"; erro
 /** A small line for the foot of every printed bill. */
 export function licenceLine(): string {
   const s = licenseStatus();
-  return s.state === "licensed" ? `Software licensed to ${s.licensee} · DevNexa` : "Unlicensed copy of Electronics Shop ERP by DevNexa";
+  return s.state === "licensed" ? `Software licensed to ${s.licensee} · the vendor` : "Unlicensed copy of Electronics Shop ERP";
 }

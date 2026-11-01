@@ -3,7 +3,7 @@
   "private": true,
   "version": "1.0.0",
   "description": "Offline billing, stock and repairs for an electronics shop, with separate customer and technician prices",
-  "author": "DevNexa",
+  "author": "",
   "main": "dist-electron/main.js",
   "scripts": {
     "dev": "vite",

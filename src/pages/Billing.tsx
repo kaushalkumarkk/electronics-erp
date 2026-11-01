@@ -1,9 +1,9 @@
-import { IconCashRegister, IconLock, IconPlus, IconPrinter, IconTrash, IconFileTypePdf } from "@tabler/icons-react";
+import { IconLock, IconPlus, IconPrinter, IconTrash, IconFileTypePdf } from "@tabler/icons-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Customer, PartyPrice, PriceTier, SaleInput, SellableProduct, Serial, Settings } from "@shared/types";
 import { billTotals } from "@shared/pricing";
 import { api } from "@/api";
-import { Badge, Field, Modal, toast } from "@/components/ui";
+import { Badge, confirmDialog, Field, Modal, toast } from "@/components/ui";
 import { PartyPicker, ProductSearch } from "@/components/Pickers";
 import { rupees } from "@/lib/format";
 import { useSession } from "@/lib/session";
@@ -21,6 +21,25 @@ interface Line {
   manual: boolean;
 }
 
+interface HeldBill {
+  id: number;
+  at: string;
+  party: Customer | null;
+  tier: PriceTier;
+  lines: Line[];
+  flat: number;
+  walkName: string;
+  walkPhone: string;
+  notes: string;
+}
+function loadHeld(): HeldBill[] {
+  try {
+    return JSON.parse(localStorage.getItem("held_bills") || "[]") as HeldBill[];
+  } catch {
+    return [];
+  }
+}
+
 let keySeq = 0;
 const MODES = ["cash", "upi", "card", "bank"];
 
@@ -36,12 +55,27 @@ export function BillingPage() {
   const [flat, setFlat] = useState(0);
   const [walkName, setWalkName] = useState("");
   const [walkPhone, setWalkPhone] = useState("");
-  const [mode, setMode] = useState("cash");
+  const [mode, setModeState] = useState(() => {
+    try {
+      return localStorage.getItem("pay_mode") || "cash";
+    } catch {
+      return "cash";
+    }
+  });
+  const setMode = (m: string) => {
+    setModeState(m);
+    try {
+      localStorage.setItem("pay_mode", m);
+    } catch {
+      // remembered for this session only
+    }
+  };
   const [paid, setPaid] = useState<number | null>(null); // null = pay in full
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
   const [serialFor, setSerialFor] = useState<Line | null>(null);
-  const [done, setDone] = useState<{ id: number; bill_no: string; total: number } | null>(null);
+  const [held, setHeld] = useState<HeldBill[]>(() => loadHeld());
+  const [heldOpen, setHeldOpen] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -108,12 +142,39 @@ export function BillingPage() {
   const pay = paid == null ? totals.total : Math.min(Math.max(0, paid), totals.total);
   const due = totals.total - pay;
 
+  function saveHeld(list: HeldBill[]) {
+    setHeld(list);
+    try {
+      localStorage.setItem("held_bills", JSON.stringify(list));
+    } catch {
+      // held for this session only
+    }
+  }
+  function holdBill() {
+    if (!lines.length) return toast.error("Nothing to hold");
+    saveHeld([...held, { id: Date.now(), at: new Date().toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" }), party, tier, lines, flat, walkName, walkPhone, notes }]);
+    toast.ok("Bill put on hold");
+    reset();
+  }
+  function resume(h: HeldBill) {
+    if (lines.length && !window.confirm("Replace the bill on screen with the held bill?")) return;
+    setParty(h.party); setTier(h.tier); setLines(h.lines); setFlat(h.flat); setWalkName(h.walkName); setWalkPhone(h.walkPhone); setNotes(h.notes); setPaid(null);
+    saveHeld(held.filter((x) => x.id !== h.id));
+    setHeldOpen(false);
+  }
+
+  async function clearBill() {
+    if (lines.length && !(await confirmDialog("Clear this bill? The items will be removed (use F6 to hold it instead).", { confirmLabel: "Clear bill", danger: true }))) return;
+    reset();
+  }
+
   function reset() {
-    setLines([]); setFlat(0); setPaid(null); setNotes(""); setWalkName(""); setWalkPhone(""); setMode("cash"); setDone(null);
+    setLines([]); setFlat(0); setPaid(null); setNotes(""); setWalkName(""); setWalkPhone("");
     pickParty(null);
   }
 
-  async function save() {
+  async function save(print = false) {
+    if (busy) return;
     if (!lines.length) return toast.error("Add at least one item");
     if (lines.some((l) => l.product?.track_serial && l.serials.length !== l.qty)) return toast.error("Pick the serial numbers for each serial-tracked item");
     if (due > 0 && !party) return toast.error("Choose a saved customer to put the balance on their account, or take the full payment");
@@ -123,7 +184,13 @@ export function BillingPage() {
     };
     setBusy(true);
     try {
-      setDone(await api.saleCreate(input));
+      const made = await api.saleCreate(input);
+      toast.ok(`Bill ${made.bill_no} saved: ${rupees(made.total)}`);
+      if (print) {
+        const r = await api.printBill(made.id);
+        if (!r.ok && r.error) toast.error(r.error);
+      }
+      reset();
     } catch (e) {
       toast.fromError(e);
     } finally {
@@ -131,32 +198,59 @@ export function BillingPage() {
     }
   }
 
+  // F2 search, F4 customer, F6 hold, F7 clear, F8 save, F9 save and print (same keys as the medical app)
+  const keys = useRef<Record<string, () => void>>({});
+  keys.current = {
+    F2: () => document.querySelector<HTMLInputElement>("input[data-search]")?.focus(),
+    F4: () => document.querySelector<HTMLInputElement>("input[data-party]")?.focus(),
+    F6: holdBill,
+    F7: () => void clearBill(),
+    F8: () => void save(false),
+    F9: () => void save(true),
+  };
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const fn = keys.current[e.key];
+      if (!fn || e.ctrlKey || e.altKey || document.querySelector("[data-layer]")) return;
+      e.preventDefault();
+      fn();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   const otherPrice = (l: Line) => (l.product ? (tier === "technician" ? l.product.customer_price : l.product.technician_price) : 0);
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-3">
-      {/* top: product search, price type */}
-      <div className="card shrink-0 p-3">
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2 text-lg font-extrabold text-slate-900"><IconCashRegister className="text-brand-500" size={22} /> Billing</div>
-          <div className="min-w-72 flex-1" ref={searchRef}>
-            <ProductSearch sell autoFocus highlight={tier} onPick={addProduct} onMiss={(t) => void addBySerial(t)} placeholder="Search product, brand, model, SKU — or scan a barcode / IMEI and press Enter" />
+      {/* top: the big search bar, like the medical bill screen */}
+      <div className="card shrink-0 border-2 border-brand-500 p-2">
+        <div className="flex items-center gap-3">
+          <div className="min-w-0 flex-1" ref={searchRef}>
+            <ProductSearch large sell autoFocus highlight={tier} onPick={addProduct} onMiss={(t) => void addBySerial(t)} placeholder="Search product, brand, model or scan barcode / IMEI…" />
           </div>
-          <button className="btn-light whitespace-nowrap" onClick={addService}><IconPlus size={16} /> Service / labour</button>
-          <div className="flex items-center gap-1 rounded-xl bg-slate-100 p-1" title={canTier ? "" : "You do not have access to change the price type"}>
+          <button className="rounded-lg bg-slate-100 px-3 py-2 text-sm font-bold text-slate-700 hover:bg-slate-200" onClick={() => setHeldOpen(true)}>Held ({held.length})</button>
+          <kbd className="rounded-lg bg-slate-100 px-2.5 py-2 text-sm font-bold text-slate-600">F2</kbd>
+        </div>
+      </div>
+      <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-500">
+        {([["F2", "Search"], ["F4", "Customer"], ["F6", "Hold bill"], ["F7", "Clear bill"], ["F8", "Save only"], ["F9", "Save & print"]] as const).map(([k, l]) => (
+          <span key={k} className="flex items-center gap-1.5"><kbd className="rounded border border-slate-300 bg-white px-1.5 py-0.5 text-[11px] font-bold text-slate-700">{k}</kbd>{l}</span>
+        ))}
+        <span>Enter adds the highlighted item</span>
+        <span className="ml-auto flex items-center gap-3">
+          <span className="font-semibold">{lines.length} item{lines.length === 1 ? "" : "s"} on this bill</span>
+          <button className="btn-light px-3 py-1.5 text-xs" onClick={addService}><IconPlus size={14} /> Service / labour</button>
+          <span className="flex items-center gap-1 rounded-xl bg-slate-100 p-1" title={canTier ? "" : "You do not have access to change the price type"}>
             {(["customer", "technician"] as const).map((t) => (
-              <button
-                key={t}
-                disabled={!canTier && tier !== t}
-                onClick={() => canTier && setTier(t)}
-                className={`rounded-lg px-4 py-1.5 text-sm font-semibold transition ${tier === t ? "bg-brand-600 text-white shadow" : "text-slate-600 hover:bg-white"} ${!canTier ? "cursor-not-allowed" : ""}`}
-              >
+              <button key={t} disabled={!canTier && tier !== t} onClick={() => canTier && setTier(t)}
+                className={`rounded-lg px-3 py-1 text-xs font-semibold transition ${tier === t ? "bg-brand-600 text-white shadow" : "text-slate-600 hover:bg-white"} ${!canTier ? "cursor-not-allowed" : ""}`}>
                 {t === "customer" ? "Customer price" : "Technician price"}
               </button>
             ))}
-            {!canTier && <IconLock size={14} className="mx-1 text-slate-400" />}
-          </div>
-        </div>
+            {!canTier && <IconLock size={13} className="mx-1 text-slate-400" />}
+          </span>
+        </span>
       </div>
 
       {/* middle: the lines fill the screen and scroll on their own */}
@@ -245,17 +339,36 @@ export function BillingPage() {
               {totals.round_off !== 0 && <Row k="Round off" v={rupees(totals.round_off)} />}
               <div className="mt-0.5 flex items-center justify-between"><dt className="text-slate-500">Items</dt><dd className="font-semibold">{lines.length} · <Badge tone={tier === "technician" ? "blue" : "slate"}>{tier === "technician" ? "Technician" : "Customer"}</Badge></dd></div>
             </dl>
-            <div className="flex w-56 flex-col justify-between gap-2">
+            <div className="flex w-72 flex-col justify-between gap-2">
               <div className="text-right"><div className="text-xs font-bold uppercase tracking-wide text-slate-500">Total</div><div className="text-3xl font-extrabold leading-tight text-brand-700">{rupees(totals.total)}</div></div>
-              <button className="btn-primary w-full py-2.5 text-base" disabled={busy || !lines.length} onClick={() => void save()}>{busy ? "Saving…" : "Save bill"}</button>
-              <button className="btn-light w-full py-1.5" disabled={!lines.length && !party} onClick={reset}>Clear</button>
+              <div className="grid grid-cols-2 gap-2">
+                <button className="btn-primary py-2.5" disabled={busy || !lines.length} onClick={() => void save(true)}><IconPrinter size={16} /> Save & print <kbd className="rounded bg-black/20 px-1 text-[10px]">F9</kbd></button>
+                <button className="btn-light py-2.5" disabled={busy || !lines.length} onClick={() => void save(false)}>Save only <kbd className="rounded bg-slate-200 px-1 text-[10px]">F8</kbd></button>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <button className="btn-light py-1.5" disabled={!lines.length} onClick={holdBill}>Hold <kbd className="rounded bg-slate-200 px-1 text-[10px]">F6</kbd></button>
+                <button className="btn-light py-1.5" disabled={!lines.length && !party} onClick={() => void clearBill()}>Clear <kbd className="rounded bg-slate-200 px-1 text-[10px]">F7</kbd></button>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
       {serialFor && <SerialPicker line={serialFor} onClose={() => setSerialFor(null)} onSave={(sn) => { patch(serialFor.key, { serials: sn, qty: sn.length }); setSerialFor(null); }} />}
-      {done && <BillDone done={done} onNew={reset} />}
+      {heldOpen && (
+        <Modal title="Held bills" onClose={() => setHeldOpen(false)}>
+          {held.length === 0 && <div className="py-8 text-center text-sm text-slate-400">No bills on hold. Press F6 to hold the current bill.</div>}
+          <div className="space-y-2">
+            {held.map((h) => (
+              <div key={h.id} className="flex items-center gap-3 rounded-xl border border-slate-200 p-3">
+                <div className="min-w-0 flex-1"><div className="font-semibold">{h.party?.name ?? (h.walkName || "Walk-in")}</div><div className="text-xs text-slate-500">{h.lines.length} items · held at {h.at}</div></div>
+                <button className="btn-primary px-3 py-1 text-xs" onClick={() => resume(h)}>Resume</button>
+                <button className="text-slate-400 hover:text-rose-600" onClick={() => saveHeld(held.filter((x) => x.id !== h.id))}><IconTrash size={16} /></button>
+              </div>
+            ))}
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }

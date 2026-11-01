@@ -68,8 +68,8 @@ export function PageHeader({ title, subtitle, actions, icon: TitleIcon }: { titl
 export function Modal({ title, onClose, children, wide, full, footer }: { title: string; onClose: () => void; children: ReactNode; wide?: boolean; full?: boolean; footer?: ReactNode }) {
   const layer = useLayer(onClose);
   return (
-    <div data-layer={layer} className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4" onMouseDown={onClose}>
-      <div className={`flex max-h-[92vh] w-full flex-col rounded-2xl bg-white shadow-2xl ${full ? "max-w-[min(96vw,1400px)]" : wide ? "max-w-5xl" : "max-w-xl"}`} onMouseDown={(e) => e.stopPropagation()}>
+    <div data-layer={layer} className="fade-in fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4" onMouseDown={onClose}>
+      <div className={`pop-in flex max-h-[92vh] w-full flex-col rounded-2xl bg-white shadow-2xl ${full ? "max-w-[min(96vw,1400px)]" : wide ? "max-w-5xl" : "max-w-xl"}`} onMouseDown={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3">
           <h2 className="text-lg font-bold text-slate-900">{title}</h2>
           <button onClick={onClose} className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700">

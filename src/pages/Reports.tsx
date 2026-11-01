@@ -2,7 +2,7 @@ import { IconChartBar, IconDownload } from "@tabler/icons-react";
 import { useEffect, useState } from "react";
 import type { ActivityRow, DayTotal, DueRow, GstRow, ProfitRow, TierRow } from "@shared/types";
 import { api } from "@/api";
-import { Badge, DateRange, Empty, PageHeader, Stat, toast } from "@/components/ui";
+import { Badge, DateRange, Empty, PageHeader, Pager, Stat, toast, usePaged } from "@/components/ui";
 import { dateOnly, dateTime, monthStart, rupees, today } from "@/lib/format";
 import { useSession } from "@/lib/session";
 
@@ -52,6 +52,7 @@ const Csv = ({ name, rows }: { name: string; rows: (string | number)[][] }) => (
 
 function Daily({ from, to }: { from: string; to: string }) {
   const rows = useLoad<DayTotal[]>(() => api.salesDaily(from, to), [from, to], []);
+  const paged = usePaged(rows, from + to);
   const sum = (k: "bills" | "customer_total" | "technician_total" | "total") => rows.reduce((s, r) => s + r[k], 0);
   return (
     <>
@@ -59,8 +60,9 @@ function Daily({ from, to }: { from: string; to: string }) {
       <div className="card overflow-x-auto">
         <div className="flex justify-end p-3"><Csv name="daily-sales.csv" rows={[["Date", "Bills", "Customer", "Technician", "Total"], ...rows.map((r) => [r.date, r.bills, r.customer_total, r.technician_total, r.total])]} /></div>
         <table className="w-full"><thead className="border-y border-slate-200 bg-slate-50"><tr><th className="th">Date</th><th className="th text-right">Bills</th><th className="th text-right">Customer price</th><th className="th text-right">Technician price</th><th className="th text-right">Total</th></tr></thead>
-          <tbody>{rows.map((r) => <tr key={r.date} className="border-b border-slate-100"><td className="td">{dateOnly(r.date)}</td><td className="td text-right">{r.bills}</td><td className="td text-right">{rupees(r.customer_total)}</td><td className="td text-right">{rupees(r.technician_total)}</td><td className="td text-right font-semibold">{rupees(r.total)}</td></tr>)}</tbody></table>
+          <tbody>{paged.items.map((r) => <tr key={r.date} className="border-b border-slate-100"><td className="td">{dateOnly(r.date)}</td><td className="td text-right">{r.bills}</td><td className="td text-right">{rupees(r.customer_total)}</td><td className="td text-right">{rupees(r.technician_total)}</td><td className="td text-right font-semibold">{rupees(r.total)}</td></tr>)}</tbody></table>
         {rows.length === 0 && <Empty text="No sales in this period" />}
+        <Pager {...paged} />
       </div>
     </>
   );
@@ -105,6 +107,7 @@ function Gst({ from, to }: { from: string; to: string }) {
 
 function Profit({ from, to }: { from: string; to: string }) {
   const rows = useLoad<ProfitRow[]>(() => api.profitReport(from, to), [from, to], []);
+  const paged = usePaged(rows, from + to);
   const sales = rows.reduce((s, r) => s + r.sales, 0), profit = rows.reduce((s, r) => s + r.profit, 0);
   return (
     <>
@@ -112,8 +115,9 @@ function Profit({ from, to }: { from: string; to: string }) {
       <div className="card overflow-x-auto">
         <div className="flex justify-end p-3"><Csv name="profit.csv" rows={[["Item", "Qty", "Sales", "Cost", "Profit"], ...rows.map((r) => [r.name, r.qty, r.sales, r.cost, r.profit])]} /></div>
         <table className="w-full"><thead className="border-y border-slate-200 bg-slate-50"><tr><th className="th">Item</th><th className="th text-right">Qty</th><th className="th text-right">Sales</th><th className="th text-right">Cost</th><th className="th text-right">Profit</th></tr></thead>
-          <tbody>{rows.map((r) => <tr key={r.name} className="border-b border-slate-100"><td className="td">{r.name}</td><td className="td text-right">{r.qty}</td><td className="td text-right">{rupees(r.sales)}</td><td className="td text-right">{rupees(r.cost)}</td><td className={`td text-right font-semibold ${r.profit < 0 ? "text-rose-600" : "text-emerald-700"}`}>{rupees(r.profit)}</td></tr>)}</tbody></table>
+          <tbody>{paged.items.map((r) => <tr key={r.name} className="border-b border-slate-100"><td className="td">{r.name}</td><td className="td text-right">{r.qty}</td><td className="td text-right">{rupees(r.sales)}</td><td className="td text-right">{rupees(r.cost)}</td><td className={`td text-right font-semibold ${r.profit < 0 ? "text-rose-600" : "text-emerald-700"}`}>{rupees(r.profit)}</td></tr>)}</tbody></table>
         {rows.length === 0 && <Empty text="No sales in this period" />}
+        <Pager {...paged} />
       </div>
     </>
   );
@@ -121,11 +125,13 @@ function Profit({ from, to }: { from: string; to: string }) {
 
 function Dues() {
   const rows = useLoad<DueRow[]>(() => api.duesList(), [], []);
+  const paged = usePaged(rows);
   return (
     <div className="card overflow-x-auto">
       <table className="w-full"><thead className="border-b border-slate-200 bg-slate-50"><tr><th className="th">Name</th><th className="th">Phone</th><th className="th">Type</th><th className="th">Oldest unpaid bill</th><th className="th text-right">Owes</th></tr></thead>
-        <tbody>{rows.map((r) => <tr key={r.customer_id} className="border-b border-slate-100"><td className="td font-semibold">{r.name}</td><td className="td">{r.phone}</td><td className="td"><Badge tone={r.type === "technician" ? "blue" : "slate"}>{r.type}</Badge></td><td className="td">{r.oldest_bill ? dateOnly(r.oldest_bill) : "—"}</td><td className="td text-right font-semibold text-amber-700">{rupees(r.balance)}</td></tr>)}</tbody></table>
+        <tbody>{paged.items.map((r) => <tr key={r.customer_id} className="border-b border-slate-100"><td className="td font-semibold">{r.name}</td><td className="td">{r.phone}</td><td className="td"><Badge tone={r.type === "technician" ? "blue" : "slate"}>{r.type}</Badge></td><td className="td">{r.oldest_bill ? dateOnly(r.oldest_bill) : "—"}</td><td className="td text-right font-semibold text-amber-700">{rupees(r.balance)}</td></tr>)}</tbody></table>
       {rows.length === 0 && <Empty text="Nobody owes anything" />}
+      <Pager {...paged} />
     </div>
   );
 }
@@ -133,12 +139,14 @@ function Dues() {
 function Activity({ from, to }: { from: string; to: string }) {
   const [q, setQ] = useState("");
   const rows = useLoad<ActivityRow[]>(() => api.activityList(from, to, q), [from, to, q], []);
+  const paged = usePaged(rows, from + to + q);
   return (
     <div className="card overflow-x-auto">
-      <div className="p-3"><input className="input max-w-sm" placeholder="Filter by person, action or detail" value={q} onChange={(e) => setQ(e.target.value)} /></div>
+      <div className="p-3"><input data-search className="input max-w-sm" placeholder="Filter by person, action or detail" value={q} onChange={(e) => setQ(e.target.value)} /></div>
       <table className="w-full"><thead className="border-y border-slate-200 bg-slate-50"><tr><th className="th">When</th><th className="th">Who</th><th className="th">What</th><th className="th">Detail</th></tr></thead>
-        <tbody>{rows.map((r, i) => <tr key={i} className="border-b border-slate-100"><td className="td whitespace-nowrap">{dateTime(r.at)}</td><td className="td">{r.user_name}</td><td className="td"><b>{r.action}</b> {r.target}</td><td className="td text-slate-500">{r.detail}</td></tr>)}</tbody></table>
+        <tbody>{paged.items.map((r, i) => <tr key={i} className="border-b border-slate-100"><td className="td whitespace-nowrap">{dateTime(r.at)}</td><td className="td">{r.user_name}</td><td className="td"><b>{r.action}</b> {r.target}</td><td className="td text-slate-500">{r.detail}</td></tr>)}</tbody></table>
       {rows.length === 0 && <Empty text="Nothing recorded" />}
+      <Pager {...paged} />
     </div>
   );
 }

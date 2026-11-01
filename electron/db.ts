@@ -25,6 +25,8 @@ export function getDb(): Database.Database {
   db.pragma("journal_mode = WAL");
   db.pragma("synchronous = FULL");
   db.pragma("foreign_keys = ON");
+  db.pragma("cache_size = -32000"); // 32 MB of pages kept in memory
+  db.pragma("temp_store = MEMORY");
   migrate(db);
   return db;
 }
@@ -275,6 +277,16 @@ export const MIGRATIONS: string[] = [
     detail text not null default ''
   );
   create index activity_at on activity_log(at);
+  `,
+  // speed: the lookups the bill, stock and account screens make most often
+  `
+  create index if not exists serials_product_status on serials(product_id, status);
+  create index if not exists serials_sale_item on serials(sale_item_id);
+  create index if not exists payments_customer on customer_payments(customer_id);
+  create index if not exists returns_sale on sale_returns(sale_id);
+  create index if not exists repairs_status on repairs(status);
+  create index if not exists sales_tier_date on sales(tier, bill_date);
+  create index if not exists products_active on products(active, name collate nocase);
   `,
 ];
 

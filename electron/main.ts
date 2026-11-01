@@ -45,7 +45,7 @@ const superadminOnly = () => {
 };
 
 const handlers: Api = {
-  // DevNexa's register of issued licences: the Super Admin, on the computer that holds the signing key
+  // The register of issued licences: the Super Admin, on the computer that holds the signing key
   registerStatus: async () => (may(), registerStatus()),
   registerList: async () => (superadminOnly(), listLicences()),
   registerIssue: async (i) => (superadminOnly(), issueLicence(i)),

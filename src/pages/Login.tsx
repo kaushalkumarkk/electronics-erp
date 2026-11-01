@@ -2,7 +2,7 @@ import { IconLock, IconUser } from "@tabler/icons-react";
 import { useState, type FormEvent, type ReactNode } from "react";
 import type { Session } from "@shared/types";
 import { api } from "@/api";
-import { BuiltBy, DevNexaLogo } from "@/components/Brand";
+import { ShopLogo } from "@/components/Brand";
 import { PasswordInput, toast } from "@/components/ui";
 
 function Shell({ title, shopName, subtitle, children }: { title: string; shopName?: string; subtitle: string; children: ReactNode }) {
@@ -12,13 +12,12 @@ function Shell({ title, shopName, subtitle, children }: { title: string; shopNam
       <div className="w-full max-w-md overflow-hidden rounded-2xl bg-white p-8 shadow-xl shadow-brand-900/10">
         <div className="-mx-8 -mt-8 mb-6 h-1.5 bg-brand-600" />
         <div className="mb-6 flex flex-col items-center text-center">
-          <DevNexaLogo size={64} className="mb-3 shadow-lg" />
+          <ShopLogo size={64} className="mb-3 shadow-lg" />
           <h1 className="text-2xl font-extrabold text-slate-900">{title}</h1>
           {shopName && <div className="mt-1 text-base font-semibold text-brand-700">{shopName}</div>}
           <p className="mt-1 text-sm text-slate-500">{subtitle}</p>
         </div>
         {children}
-        <BuiltBy className="mt-6 border-t border-slate-100 pt-4" />
       </div>
      </div>
     </div>
@@ -63,7 +62,7 @@ export function LoginPage({ shopName, onSignedIn }: { shopName: string; onSigned
         <button className="btn-primary w-full py-3 text-base" disabled={busy || !username || !password}>
           {busy ? "Signing in…" : "Sign in"}
         </button>
-        <p className="text-center text-xs text-slate-400">Forgot your password? Contact the DevNexa team to reset it.</p>
+        <p className="text-center text-xs text-slate-400">Forgot your password? Ask your Super Admin to reset it.</p>
       </form>
     </Shell>
   );
