@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Modal } from "@/components/ui";
 
-/* Keyboard layer shared by the DevNexa ERP apps (Gold, Medical, Bike, Restaurant).
+/* Keyboard layer.
  *   Alt + letter ........ open a screen (shown next to it in the side menu)
  *   Ctrl+K  or  ? ....... jump-to-screen box with the shortcut cheat sheet
  *   /  or  Ctrl+F ....... focus the search box of the current list

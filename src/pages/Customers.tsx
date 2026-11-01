@@ -2,7 +2,7 @@ import { IconAddressBook, IconPlus, IconSearch, IconTrash } from "@tabler/icons-
 import { useCallback, useEffect, useState } from "react";
 import type { AgreedPrice, Customer, CustomerInput, LedgerRow, PriceTier } from "@shared/types";
 import { api } from "@/api";
-import { Badge, confirmDialog, Empty, Field, Modal, PageHeader, Pager, Stat, toast, usePaged } from "@/components/ui";
+import { Badge, confirmDialog, Empty, enterToNext, Field, Modal, PageHeader, Pager, Stat, toast, usePaged } from "@/components/ui";
 import { ProductSearch } from "@/components/Pickers";
 import { dateOnly, rupees } from "@/lib/format";
 import { useSession } from "@/lib/session";
@@ -51,7 +51,7 @@ export function CustomersPage() {
         </div>
         <div className="relative flex-1">
           <IconSearch size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input className="input pl-9" placeholder="Search name, shop or phone" value={q} onChange={(e) => setQ(e.target.value)} />
+          <input data-search className="input pl-9" placeholder="Search name, shop or phone" value={q} onChange={(e) => setQ(e.target.value)} />
         </div>
       </div>
       <div className="card overflow-x-auto">
@@ -101,7 +101,7 @@ function CustomerForm({ initial, onClose, onSaved }: { initial: CustomerInput; o
           </button>
         ))}
       </div>
-      <div className="grid gap-3 md:grid-cols-3">
+      <div className="grid gap-3 md:grid-cols-3" onKeyDown={(e) => enterToNext(e, () => void save())}>
         <Field label="Name *"><input className="input" autoFocus value={c.name} onChange={(e) => set("name", e.target.value)} /></Field>
         <Field label="Phone"><input className="input" value={c.phone} onChange={(e) => set("phone", e.target.value)} /></Field>
         <Field label="Shop / business"><input className="input" value={c.shop_name} onChange={(e) => set("shop_name", e.target.value)} /></Field>
@@ -122,6 +122,7 @@ function Detail({ customer, onClose }: { customer: Customer; onClose: () => void
   const [ledger, setLedger] = useState<LedgerRow[]>([]);
   const [rates, setRates] = useState<AgreedPrice[]>([]);
   const [pay, setPay] = useState({ amount: 0, mode: "cash", note: "" });
+  const paged = usePaged(ledger);
 
   const load = useCallback(() => {
     if (can("payments") || can("customers")) api.customerLedger(customer.id).then(setLedger).catch(() => setLedger([]));
@@ -173,7 +174,7 @@ function Detail({ customer, onClose }: { customer: Customer; onClose: () => void
           <table className="w-full">
             <thead><tr><th className="th">Date</th><th className="th">Entry</th><th className="th text-right">Billed</th><th className="th text-right">Paid / returned</th><th className="th text-right">Balance</th></tr></thead>
             <tbody>
-              {ledger.map((r, i) => (
+              {paged.items.map((r, i) => (
                 <tr key={i} className="border-b border-slate-100">
                   <td className="td">{r.date ? dateOnly(r.date) : ""}</td><td className="td">{r.kind === "payment" ? `Payment ${r.ref}` : r.kind === "return" ? `Return on ${r.ref}` : r.ref}</td>
                   <td className="td text-right">{r.debit ? rupees(r.debit) : ""}</td><td className="td text-right text-emerald-700">{r.credit ? rupees(r.credit) : ""}</td><td className="td text-right font-semibold">{rupees(r.balance)}</td>
@@ -181,6 +182,7 @@ function Detail({ customer, onClose }: { customer: Customer; onClose: () => void
               ))}
             </tbody>
           </table>
+          <Pager {...paged} />
         </>
       )}
 

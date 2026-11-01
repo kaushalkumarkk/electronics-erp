@@ -57,7 +57,7 @@ export function DashboardPage() {
                   <g key={x.date}>
                     <title>{`${dateOnly(x.date)}: ${rupees(x.total)} (customer ${rupees(x.customer_total)}, technician ${rupees(x.technician_total)})`}</title>
                     <rect x={bx} y={H - hc} width={w} height={hc} rx={2} fill="#94a3b8" />
-                    <rect x={bx} y={H - hc - ht} width={w} height={ht} rx={2} fill="#4f46e5" />
+                    <rect x={bx} y={H - hc - ht} width={w} height={ht} rx={2} fill="#10b981" />
                   </g>
                 );
               })}

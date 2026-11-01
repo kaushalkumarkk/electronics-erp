@@ -8,6 +8,7 @@ import {
   IconFileInvoice,
   IconKey,
   IconLayoutDashboard,
+  IconNotebook,
   IconLogout,
   IconMenu2,
   IconPackage,
@@ -20,7 +21,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { HashRouter, NavLink, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import type { AuthState, LicenseStatus, Permission, Session } from "@shared/types";
 import { api } from "@/api";
-import { DevNexaLogo } from "@/components/Brand";
+import { ShopLogo } from "@/components/Brand";
 import { ConfirmHost, Field, Modal, PasswordInput, toast, ToastHost } from "@/components/ui";
 import { Palette, useGlobalShortcuts, type HotItem } from "@/lib/shortcuts";
 import { SessionContext, type SessionCtx, useSession } from "@/lib/session";
@@ -31,6 +32,7 @@ import { DashboardPage } from "@/pages/Dashboard";
 import { LicenceGate } from "@/pages/LicenceGate";
 import { ChooseOwnPasswordPage, LoginPage, SetupPage } from "@/pages/Login";
 import { LicencesPage } from "@/pages/Licences";
+import { UdharPage } from "@/pages/Udhar";
 import { ProductsPage } from "@/pages/Products";
 import { PurchasesPage } from "@/pages/Purchases";
 import { RepairsPage } from "@/pages/Repairs";
@@ -41,7 +43,7 @@ import { UsersPage } from "@/pages/Users";
 
 /** Alt + key opens a screen (no Alt+E/F/H/V/W: the development menu bar uses those). */
 const HOT: Record<string, [string, string]> = {
-  "/dashboard": ["KeyD", "D"], "/billing": ["KeyB", "B"], "/bills": ["KeyS", "S"], "/repairs": ["KeyR", "R"], "/customers": ["KeyC", "C"],
+  "/dashboard": ["KeyD", "D"], "/billing": ["KeyB", "B"], "/bills": ["KeyS", "S"], "/repairs": ["KeyR", "R"], "/customers": ["KeyC", "C"], "/udhar": ["KeyL", "L"],
   "/products": ["KeyM", "M"], "/purchases": ["KeyU", "U"], "/stock": ["KeyK", "K"], "/reports": ["KeyP", "P"], "/users": ["KeyZ", "Z"], "/settings": ["Comma", ","],
 };
 
@@ -51,6 +53,7 @@ const SCREENS: { to: string; label: string; icon: typeof IconBox; need: Permissi
   { to: "/billing", label: "Billing", icon: IconCashRegister, need: ["billing"], element: <BillingPage />, key: "F1" },
   { to: "/bills", label: "Bills & Returns", icon: IconFileInvoice, need: ["bills.view"], element: <BillsPage /> },
   { to: "/repairs", label: "Repairs", icon: IconDeviceMobileCog, need: ["repairs"], element: <RepairsPage /> },
+  { to: "/udhar", label: "Udhar", icon: IconNotebook, need: ["payments"], element: <UdharPage /> },
   { to: "/customers", label: "Customers", icon: IconAddressBook, need: ["customers", "payments"], element: <CustomersPage /> },
   { to: "/products", label: "Products & Prices", icon: IconBox, need: ["products.view"], element: <ProductsPage /> },
   { to: "/purchases", label: "Purchases", icon: IconTruck, need: ["purchases"], element: <PurchasesPage /> },
@@ -128,7 +131,7 @@ function SignedIn({ session, onSignOut, onRefresh }: { session: Session; onSignO
     }),
     [session, onSignOut, onRefresh]
   );
-  // the Licences screen is only for DevNexa's own computer (where the signing key is kept)
+  // the Licences screen is only for the vendor's own computer (where the signing key is kept)
   const [vendor, setVendor] = useState(false);
   useEffect(() => {
     if (ctx.isSuperadmin) api.registerStatus().then((r) => setVendor(r.enabled)).catch(() => setVendor(false));
@@ -176,14 +179,14 @@ function SignedIn({ session, onSignOut, onRefresh }: { session: Session; onSignO
     <SessionContext.Provider value={ctx}>
       <HashRouter>
         <Shortcuts canBill={ctx.can("billing")} />
-        <div className="flex h-full overflow-hidden bg-slate-50">
+        <div className="flex h-full overflow-hidden bg-brand-50">
           <Sidebar screens={screens} open={menuOpen} />
           <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
             <TopBar open={menuOpen} onToggle={toggleMenu} />
             <Main screens={screens} />
           </div>
         </div>
-        {palette && <Palette items={hotItems} extra={[["F1", "Billing"]]} onClose={() => setPalette(false)} />}
+        {palette && <Palette items={hotItems} extra={[["F1", "Open Billing"], ["F2 / F4", "Billing: search / customer"], ["F3", "Billing: udhar on / off"], ["F6 / F7", "Billing: hold / clear bill"], ["F8 / F9", "Billing: save / save and print"]]} onClose={() => setPalette(false)} />}
       </HashRouter>
     </SessionContext.Provider>
   );
@@ -191,7 +194,7 @@ function SignedIn({ session, onSignOut, onRefresh }: { session: Session; onSignO
 
 /** The side menu is grouped: each screen sits under one heading. Users & Access opens from the profile menu in the top bar. */
 const NAV_GROUPS: { label: string; routes: string[] }[] = [
-  { label: "Sales", routes: ["/billing", "/bills", "/repairs", "/customers"] },
+  { label: "Sales", routes: ["/billing", "/bills", "/udhar", "/repairs", "/customers"] },
   { label: "Inventory", routes: ["/products", "/stock"] },
   { label: "Buying", routes: ["/purchases"] },
   { label: "Insights", routes: ["/reports"] },
@@ -240,7 +243,7 @@ function Sidebar({ screens, open }: { screens: typeof SCREENS; open: boolean }) 
         <div className={`flex shrink-0 items-center border-b border-slate-800 bg-slate-950/40 py-3 ${open ? "px-3.5" : "justify-center px-2"}`}>
           {open ? (
             <div className="flex min-w-0 items-center gap-2.5">
-              <DevNexaLogo size={30} />
+              <ShopLogo size={30} />
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5 text-sm font-extrabold tracking-wide text-white">
                   <span>ELECTRONICS</span>
@@ -250,7 +253,7 @@ function Sidebar({ screens, open }: { screens: typeof SCREENS; open: boolean }) 
               </div>
             </div>
           ) : (
-            <DevNexaLogo size={34} />
+            <ShopLogo size={34} />
           )}
         </div>
 
@@ -274,16 +277,6 @@ function Sidebar({ screens, open }: { screens: typeof SCREENS; open: boolean }) 
           ))}
         </nav>
 
-        {open && (
-          <div className="flex shrink-0 items-center gap-3 border-t border-slate-800 px-4 py-3 text-[10px] leading-snug text-slate-500">
-            <DevNexaLogo size={40} className="shrink-0 rounded-lg" />
-            <div className="min-w-0">
-              <div>Built by <span className="font-bold text-slate-300">DevNexa</span></div>
-              <div>Shivam &amp; Kaushal</div>
-              <div>6201672113, 9102257101</div>
-            </div>
-          </div>
-        )}
       </aside>
       {!open && hovered && (
         <div className="pointer-events-none fixed z-50 flex items-center" style={{ left: 68, top: hovered.top, transform: "translateY(-50%)" }}>
@@ -419,12 +412,14 @@ function Main({ screens }: { screens: typeof SCREENS }) {
                   </div>
                 </div>
               ) : (
+                <div key={location.pathname} className={`page-in ${location.pathname === "/billing" ? "h-full" : ""}`}>
                 <Routes>
                   {screens.map((s) => (
                     <Route key={s.to} path={s.to} element={s.element} />
                   ))}
                   <Route path="*" element={<Navigate to={screens[0].to} replace />} />
                 </Routes>
+                </div>
               )}
             </main>
   );
@@ -440,7 +435,7 @@ function LicenceBanner() {
   if (!st || st.state !== "licensed" || st.days_left === null || st.days_left > 30) return null;
   return (
     <div className="mb-3 rounded-xl bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-900 ring-1 ring-amber-200">
-      Your subscription ends in {st.days_left} day{st.days_left === 1 ? "" : "s"}. Please contact DevNexa support on 9102257101 / 6201672113 to renew it.
+      Your subscription ends in {st.days_left} day{st.days_left === 1 ? "" : "s"}. Please renew your licence before then.
     </div>
   );
 }

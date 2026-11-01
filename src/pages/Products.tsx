@@ -2,7 +2,7 @@ import { IconBox, IconDownload, IconPlus, IconSearch } from "@tabler/icons-react
 import { useCallback, useEffect, useState } from "react";
 import type { Product, ProductInput } from "@shared/types";
 import { api } from "@/api";
-import { Badge, Empty, Field, Modal, PageHeader, Pager, toast, usePaged } from "@/components/ui";
+import { Badge, Empty, enterToNext, Field, Modal, PageHeader, Pager, toast, usePaged } from "@/components/ui";
 import { rupees } from "@/lib/format";
 import { useSession } from "@/lib/session";
 
@@ -56,7 +56,7 @@ export function ProductsPage() {
       <div className="card mb-4 flex flex-wrap items-center gap-3 p-3">
         <div className="relative flex-1">
           <IconSearch size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input className="input pl-9" placeholder="Search name, brand, model, SKU, barcode, category" value={q} onChange={(e) => setQ(e.target.value)} />
+          <input data-search className="input pl-9" placeholder="Search name, brand, model, SKU, barcode, category" value={q} onChange={(e) => setQ(e.target.value)} />
         </div>
         <label className="flex items-center gap-2 text-sm text-slate-600"><input type="checkbox" checked={all} onChange={(e) => setAll(e.target.checked)} /> Show switched-off</label>
       </div>
@@ -70,7 +70,7 @@ export function ProductsPage() {
           </thead>
           <tbody>
             {paged.items.map((p) => (
-              <tr key={p.id} className="border-b border-slate-100 hover:bg-slate-50">
+              <tr key={p.id} className={`border-b border-slate-100 hover:bg-slate-50 ${canEdit ? "cursor-pointer" : ""}`} onClick={() => canEdit && setEdit({ ...p })}>
                 <td className="td">
                   <div className="font-semibold">{p.name} {!p.active && <Badge tone="red">off</Badge>}</div>
                   <div className="text-[11px] text-slate-500">{[p.brand, p.model, p.sku].filter(Boolean).join(" · ")}{p.track_serial ? " · serial/IMEI" : ""}{p.warranty_months ? ` · ${p.warranty_months} mo warranty` : ""}</div>
@@ -82,7 +82,7 @@ export function ProductsPage() {
                 {canCost && <td className="td text-right text-slate-600">{p.is_service ? "—" : rupees(p.purchase_rate)}</td>}
                 <td className="td text-right text-slate-500">{p.gst_rate}%</td>
                 <td className={`td text-right font-semibold ${!p.is_service && p.qty <= p.min_stock ? "text-rose-600" : ""}`}>{p.is_service ? "—" : p.qty}</td>
-                <td className="td text-right">{canEdit && <button className="btn-light px-3 py-1 text-xs" onClick={() => setEdit({ ...p })}>Edit</button>}</td>
+                <td className="td text-right" onClick={(e) => e.stopPropagation()}>{canEdit && <button className="btn-light px-3 py-1 text-xs" onClick={() => setEdit({ ...p })}>Edit</button>}</td>
               </tr>
             ))}
           </tbody>
@@ -118,6 +118,7 @@ function ProductForm({ initial, categories, canCost, onClose, onSaved }: { initi
   return (
     <Modal title={p.id ? "Edit product" : "Add product"} onClose={onClose} wide
       footer={<><button className="btn-light" onClick={onClose}>Cancel</button><button className="btn-primary" disabled={busy} onClick={() => void save()}>Save</button></>}>
+      <div onKeyDown={(e) => enterToNext(e, () => void save())}>
       <div className="grid gap-3 md:grid-cols-3">
         <Field label="Name *" className="md:col-span-2"><input className="input" autoFocus value={p.name} onChange={(e) => set("name", e.target.value)} /></Field>
         <Field label="Category"><input className="input" list="cats" value={p.category} onChange={(e) => set("category", e.target.value)} /><datalist id="cats">{categories.map((c) => <option key={c} value={c} />)}</datalist></Field>
@@ -149,6 +150,7 @@ function ProductForm({ initial, categories, canCost, onClose, onSaved }: { initi
         <label className="flex items-center gap-2"><input type="checkbox" checked={p.track_serial} disabled={p.is_service} onChange={(e) => set("track_serial", e.target.checked)} /> Track each unit by serial / IMEI</label>
         <label className="flex items-center gap-2"><input type="checkbox" checked={p.is_service} onChange={(e) => setP((x) => ({ ...x, is_service: e.target.checked, track_serial: e.target.checked ? false : x.track_serial }))} /> This is a service (no stock)</label>
         <label className="flex items-center gap-2"><input type="checkbox" checked={p.active} onChange={(e) => set("active", e.target.checked)} /> Active</label>
+      </div>
       </div>
     </Modal>
   );

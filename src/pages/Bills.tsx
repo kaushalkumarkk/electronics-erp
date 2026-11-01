@@ -29,7 +29,7 @@ export function BillsPage() {
       <div className="card mb-4 flex flex-wrap items-center gap-3 p-3">
         <DateRange from={from} to={to} onChange={(f, t) => { setFrom(f); setTo(t); }} />
         <select className="input w-44" value={tier} onChange={(e) => setTier(e.target.value as PriceTier | "")}><option value="">All price types</option><option value="customer">Customer price</option><option value="technician">Technician price</option></select>
-        <div className="relative min-w-60 flex-1"><IconSearch size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" /><input className="input pl-9" placeholder="Bill no, name or phone" value={q} onChange={(e) => setQ(e.target.value)} /></div>
+        <div className="relative min-w-60 flex-1"><IconSearch size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" /><input data-search className="input pl-9" placeholder="Bill no, name or phone" value={q} onChange={(e) => setQ(e.target.value)} /></div>
       </div>
       <div className="card overflow-x-auto">
         <table className="w-full">

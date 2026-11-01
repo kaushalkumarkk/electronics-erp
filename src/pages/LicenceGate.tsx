@@ -2,7 +2,7 @@ import { IconCopy, IconLock, IconPhone } from "@tabler/icons-react";
 import { useState } from "react";
 import type { LicenseStatus } from "@shared/types";
 import { api } from "@/api";
-import { DEVNEXA, DevNexaLogo } from "@/components/Brand";
+import { ShopLogo } from "@/components/Brand";
 import { toast } from "@/components/ui";
 import { renewalRequestText } from "@/lib/renewal";
 
@@ -31,10 +31,10 @@ export function LicenceGate({ status, onActivated }: { status: LicenseStatus; on
       <div className="w-full max-w-xl overflow-hidden rounded-2xl bg-white shadow-2xl">
         <div className="border-t-4 border-brand-600 bg-brand-50 px-8 py-6 text-slate-900">
           <div className="flex items-center gap-3">
-            <DevNexaLogo size={44} />
+            <ShopLogo size={44} />
             <div>
               <div className="text-lg font-extrabold tracking-wide">ELECTRONICS <span className="rounded border border-brand-500/30 bg-brand-500/20 px-1.5 py-0.5 align-middle text-[10px] font-bold text-brand-400">ERP</span></div>
-              <div className="text-xs text-slate-500">by {DEVNEXA.name}</div>
+              <div className="text-xs text-slate-500">Licence activation</div>
             </div>
           </div>
         </div>
@@ -62,7 +62,7 @@ export function LicenceGate({ status, onActivated }: { status: LicenseStatus; on
                 <IconCopy size={16} />
               </button>
             </div>
-            <div className="mt-1 text-[11px] text-slate-400">Tell {DEVNEXA.name} this ID if you want a key that works on this computer only.</div>
+            <div className="mt-1 text-[11px] text-slate-400">Send this ID with your shop name to get a key that works on this computer only.</div>
           </div>
 
           <div>
@@ -83,11 +83,11 @@ export function LicenceGate({ status, onActivated }: { status: LicenseStatus; on
 
           <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-4 text-xs text-slate-500">
             <span className="flex items-center gap-1.5">
-              <IconPhone size={14} className="text-brand-500" /> To get or renew a key, call {DEVNEXA.name} support: <b className="text-slate-700">{DEVNEXA.support}</b>
+              <IconPhone size={14} className="text-brand-500" /> To get or renew a key, send the request below to your software provider
             </span>
             <button
               className="font-semibold text-brand-600 hover:underline"
-              onClick={() => void navigator.clipboard.writeText(renewalRequestText(status)).then(() => toast.ok("Request copied. Send it to DevNexa to get your key."))}
+              onClick={() => void navigator.clipboard.writeText(renewalRequestText(status)).then(() => toast.ok("Request copied. Send it to your software provider to get your key."))}
             >
               Copy {ended ? "renewal" : "licence"} request
             </button>

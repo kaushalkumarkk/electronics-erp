@@ -5,10 +5,10 @@ export default {
   theme: {
     extend: {
       colors: {
-        // indigo-blue brand so the electronics app is visibly distinct from the green medical one
+        // the same green light theme as the medical app
         brand: {
-          50: "#eef2ff", 100: "#e0e7ff", 200: "#c7d2fe", 300: "#a5b4fc", 400: "#818cf8",
-          500: "#6366f1", 600: "#4f46e5", 700: "#4338ca", 800: "#3730a3", 900: "#312e81",
+          50: "#f0fdf7", 100: "#dcfce9", 200: "#bbf7d6", 300: "#86efb8", 400: "#4ade98",
+          500: "#34d399", 600: "#10b981", 700: "#059669", 800: "#047857", 900: "#065f46",
         },
       },
       fontFamily: { sans: ["Inter", "Segoe UI", "Roboto", "Arial", "sans-serif"] },

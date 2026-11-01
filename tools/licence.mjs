@@ -36,8 +36,8 @@ function writeRegistry(list) {
   fs.renameSync(registryPath + ".tmp", registryPath);
 }
 function nextId(list, year) {
-  const used = list.map((r) => String(r.id).match(new RegExp(`^DNX-${year}-(\\d{4})$`))?.[1]).filter(Boolean).map(Number);
-  return `DNX-${year}-${String((used.length ? Math.max(...used) : 0) + 1).padStart(4, "0")}`;
+  const used = list.map((r) => String(r.id).match(new RegExp(`^ESE-${year}-(\\d{4})$`))?.[1]).filter(Boolean).map(Number);
+  return `ESE-${year}-${String((used.length ? Math.max(...used) : 0) + 1).padStart(4, "0")}`;
 }
 function standing(expires) {
   if (!expires) return "lifetime";

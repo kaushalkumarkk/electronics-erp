@@ -8,7 +8,7 @@ import { todayLocal, UserError } from "./util";
 
 const { app } = electron;
 
-/** DevNexa's register of every licence it has given out: one JSON file next to the private key, shared with
+/** The register of every licence it has given out: one JSON file next to the private key, shared with
  * `npm run licence` (tools/licence.mjs), so a licence made with the tool or typed in by hand shows up here by itself.
  * It only works on the computer that holds the private key; on a shop's computer the Licences screen does not exist. */
 
@@ -35,7 +35,7 @@ export function registerStatus(): { enabled: boolean; folder: string } {
 }
 
 function requireEnabled(): void {
-  if (!registerStatus().enabled) throw new UserError("This computer does not hold the DevNexa signing key, so it cannot manage licences.");
+  if (!registerStatus().enabled) throw new UserError("This computer does not hold the signing key, so it cannot manage licences.");
 }
 
 function readAll(): Stored[] {
@@ -66,10 +66,10 @@ function standing(expires: string | null, today = todayLocal()): { status: Licen
 
 const withStanding = (s: Stored): LicenceRecord => ({ ...s, ...standing(s.expires) });
 
-/** The next licence number for this year: DNX-2026-0001, 0002… */
+/** The next licence number for this year: ESE-2026-0001, 0002… */
 function nextId(list: Stored[], year: string): string {
-  const used = list.map((r) => r.id.match(new RegExp(`^DNX-${year}-(\\d{4})$`))?.[1]).filter((n): n is string => !!n).map(Number);
-  return `DNX-${year}-${String((used.length ? Math.max(...used) : 0) + 1).padStart(4, "0")}`;
+  const used = list.map((r) => r.id.match(new RegExp(`^ESE-${year}-(\\d{4})$`))?.[1]).filter((n): n is string => !!n).map(Number);
+  return `ESE-${year}-${String((used.length ? Math.max(...used) : 0) + 1).padStart(4, "0")}`;
 }
 
 const isDate = (d: unknown): d is string => typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d) && !Number.isNaN(Date.parse(d));

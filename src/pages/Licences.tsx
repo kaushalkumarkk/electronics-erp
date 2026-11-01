@@ -27,7 +27,7 @@ function ends(r: LicenceRecord): string {
 
 type Filter = "all" | LicenceStanding;
 
-/** DevNexa's own view of every licence it has issued, one line per shop. It reads tools/licences.json, the same file the
+/** The vendor's view of every licence issued, one line per shop. It reads tools/licences.json, the same file the
  * `npm run licence` tool writes, and looks again every few seconds, so a licence made with the tool or typed into the file
  * appears here without a click. Only exists on the computer that holds the private signing key. */
 export function LicencesPage() {
@@ -76,7 +76,7 @@ export function LicencesPage() {
     return (
       <div className="card mx-auto mt-10 max-w-xl p-8 text-center text-slate-600">
         <IconKey size={34} className="mx-auto mb-2 text-slate-300" />
-        <div className="font-bold text-slate-800">This computer does not hold the DevNexa signing key</div>
+        <div className="font-bold text-slate-800">This computer does not hold the signing key</div>
         <div className="mt-1 text-sm">The licence register only works on the computer where <code>tools/private-key.pem</code> is kept.</div>
       </div>
     );
@@ -297,7 +297,7 @@ function IssueDialog({ start, known, onClose, onIssued }: { start: Partial<Licen
     >
       {!start.renewal_of && (
         <Field label="Did the shop send a renewal request?" className="mb-3" hint="They copy it from Settings → Licence (or their lock screen). Paste it here and the form fills itself.">
-          <textarea className="input h-16 font-mono text-xs" value={pasted} onChange={(e) => readRequest(e.target.value)} placeholder={"DevNexa renewal request\nShop: …\nLicence: …\nMachine: …"} />
+          <textarea className="input h-16 font-mono text-xs" value={pasted} onChange={(e) => readRequest(e.target.value)} placeholder={"Licence renewal request\nShop: …\nLicence: …\nMachine: …"} />
           {filled && <span className="mt-1 block text-xs font-semibold text-emerald-700">{filled}</span>}
         </Field>
       )}
@@ -381,7 +381,7 @@ function AddDialog({ onClose, onAdded }: { onClose: () => void; onAdded: () => v
         ) : (
           <>
             <Field label="Shop name *" className="col-span-2"><input className="input" autoFocus value={f.shop} onChange={(e) => set("shop", e.target.value)} /></Field>
-            <Field label="Licence number" hint="Leave empty for the next number"><input className="input font-mono uppercase" value={f.id} onChange={(e) => set("id", e.target.value.toUpperCase())} placeholder="DNX-2026-0001" /></Field>
+            <Field label="Licence number" hint="Leave empty for the next number"><input className="input font-mono uppercase" value={f.id} onChange={(e) => set("id", e.target.value.toUpperCase())} placeholder="ESE-2026-0001" /></Field>
             <Field label="Machine ID" hint="Empty = any computer"><input className="input font-mono uppercase" value={f.machine} onChange={(e) => set("machine", e.target.value)} /></Field>
             <Field label="Issued on"><input type="date" className="input" max={today()} value={f.issued} onChange={(e) => set("issued", e.target.value)} /></Field>
             <Field label="Valid until">

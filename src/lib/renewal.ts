@@ -1,9 +1,9 @@
 import type { LicenseStatus } from "@shared/types";
 
-/** What a shop sends DevNexa to ask for a renewal: copied from Settings → Licence (or the lock screen), pasted into the
+/** What a shop sends the vendor to ask for a renewal: copied from Settings → Licence (or the lock screen), pasted into the
  * Licences screen, which fills in the shop, its licence, its end date and its computer. */
 export function renewalRequestText(s: Pick<LicenseStatus, "licensee" | "licence_id" | "expires" | "machine_id">): string {
-  return ["DevNexa renewal request", `Shop: ${s.licensee || "(not licensed yet)"}`, `Licence: ${s.licence_id || "-"}`, `Ends: ${s.expires ?? "-"}`, `Machine: ${s.machine_id}`].join("\n");
+  return ["Licence renewal request", `Shop: ${s.licensee || "(not licensed yet)"}`, `Licence: ${s.licence_id || "-"}`, `Ends: ${s.expires ?? "-"}`, `Machine: ${s.machine_id}`].join("\n");
 }
 
 export interface RenewalRequest {

@@ -521,6 +521,12 @@ export interface Api {
   registerAdd(i: LicenceAddInput): Promise<LicenceRecord>;
   registerRemove(id: string): Promise<void>;
 
+  purchaseCsvRead(): Promise<PurchaseImportResult>;
+  purchasePdfPick(): Promise<{ ok: boolean; fileName?: string; data?: Uint8Array }>;
+  purchaseTableRead(table: string[][], fileName: string): Promise<PurchaseImportResult>;
+  purchaseTemplate(): Promise<{ ok: boolean; path?: string }>;
+  udharBills(): Promise<UdharBill[]>;
+
   authState(): Promise<AuthState>;
   setupSuperadmin(i: { name: string; username: string; password: string; staff?: { name: string; username: string; password: string } }): Promise<Session>;
   login(username: string, password: string): Promise<Session>;
@@ -591,4 +597,50 @@ export interface Api {
   restoreBackup(): Promise<{ ok: boolean; error?: string }>;
   chooseFolder(title: string): Promise<string>;
   dataFolder(): Promise<string>;
+}
+
+/* ---------- purchase import (CSV / PDF) ---------- */
+
+export interface PurchaseImportRow {
+  /** the row in the file (the header is row 1) */
+  line: number;
+  name: string;
+  sku: string;
+  barcode: string;
+  /** the product this row matched, or null when it is new */
+  product_id: number | null;
+  qty: number;
+  rate: number;
+  gst_rate: number;
+  customer_price: number;
+  technician_price: number;
+  serial_nos: string[];
+  track_serial: boolean;
+  hsn: string;
+  brand: string;
+  category: string;
+  issues: string[];
+}
+export interface PurchaseImportResult {
+  ok: boolean;
+  rows: PurchaseImportRow[];
+  fileName?: string;
+  error?: string;
+}
+
+/* ---------- udhar (credit) ---------- */
+
+/** A bill with money still owed on it. */
+export interface UdharBill {
+  sale_id: number;
+  bill_no: string;
+  bill_date: string;
+  customer_id: number;
+  customer_name: string;
+  phone: string;
+  tier: PriceTier;
+  total: number;
+  paid: number;
+  due: number;
+  days: number;
 }

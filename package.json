@@ -3,7 +3,7 @@
   "private": true,
   "version": "1.0.0",
   "description": "Offline billing, stock and repairs for an electronics shop, with separate customer and technician prices",
-  "author": "DevNexa",
+  "author": "",
   "main": "dist-electron/main.js",
   "scripts": {
     "dev": "vite",
@@ -13,6 +13,7 @@
   "dependencies": {
     "@tabler/icons-react": "^3.48.0",
     "better-sqlite3": "11.10.0",
+    "pdfjs-dist": "^4.10.38",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.26.2"

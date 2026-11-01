@@ -49,7 +49,7 @@ export function RepairsPage() {
           <option value="">Open jobs</option>
           {REPAIR_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
         </select>
-        <div className="relative min-w-60 flex-1"><IconSearch size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" /><input className="input pl-9" placeholder="Job no, name, phone, device or serial (searches every job)" value={q} onChange={(e) => setQ(e.target.value)} /></div>
+        <div className="relative min-w-60 flex-1"><IconSearch size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" /><input data-search className="input pl-9" placeholder="Job no, name, phone, device or serial (searches every job)" value={q} onChange={(e) => setQ(e.target.value)} /></div>
       </div>
       <div className="card overflow-x-auto">
         <table className="w-full min-w-[900px]">
