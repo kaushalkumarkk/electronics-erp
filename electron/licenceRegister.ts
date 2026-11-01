@@ -91,6 +91,7 @@ export function issueLicence(input: LicenceIssueInput): LicenceRecord {
   const shop = input.shop.trim();
   if (!shop) throw new UserError("Enter the shop's name");
   const machine = cleanMachine(input.machine);
+  if (machine === "ANY") throw new UserError("Enter the Machine ID from the shop's lock screen. Every key is made for one computer.");
   const today = todayLocal();
   let expires: string | null;
   if (input.expires === null) expires = null;

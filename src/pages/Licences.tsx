@@ -315,7 +315,7 @@ function IssueDialog({ start, known, onClose, onIssued }: { start: Partial<Licen
         </Field>
         {keepsDays && <div className="col-span-2 -mt-1 rounded-lg bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-800">The new year counts from the old end date ({dateOnly(from!)}), so the days left on the old licence are kept.</div>}
         {term === "date" && <Field label="Ends on" className="col-span-2"><input type="date" className="input" min={today()} value={until} onChange={(e) => setUntil(e.target.value)} /></Field>}
-        <Field label="Machine ID of the shop's computer" className="col-span-2" hint="Optional. The shop reads it off its lock screen. A key with an ID works on that one computer only; without it, on any computer.">
+        <Field label="Machine ID of the shop's computer *" className="col-span-2" hint="Required. The shop reads it off its lock screen. The key works on that one computer only.">
           <input className="input font-mono uppercase" value={machine} onChange={(e) => setMachine(e.target.value)} placeholder="1A2B-3C4D-5E6F-7A8B" />
         </Field>
         <Field label="Note" className="col-span-2"><input className="input" value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. paid ₹7,500 by UPI" /></Field>
