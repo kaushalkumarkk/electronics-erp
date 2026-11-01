@@ -1,8 +1,9 @@
-import { IconBox, IconDownload, IconPlus, IconSearch } from "@tabler/icons-react";
+import { IconBox, IconDownload, IconFileSpreadsheet, IconPlus, IconSearch } from "@tabler/icons-react";
 import { useCallback, useEffect, useState } from "react";
-import type { Product, ProductInput } from "@shared/types";
+import type { Product, ProductImportResult, ProductInput } from "@shared/types";
 import { api } from "@/api";
 import { Badge, Empty, enterToNext, Field, Modal, PageHeader, Pager, toast, usePaged } from "@/components/ui";
+import { ProductImportReview } from "@/components/ProductImport";
 import { rupees } from "@/lib/format";
 import { useSession } from "@/lib/session";
 
@@ -19,6 +20,7 @@ export function ProductsPage() {
   const [all, setAll] = useState(false);
   const [rows, setRows] = useState<Product[]>([]);
   const [edit, setEdit] = useState<ProductInput | null>(null);
+  const [review, setReview] = useState<ProductImportResult | null>(null);
   const [categories, setCategories] = useState<string[]>([]);
   const paged = usePaged(rows, q + all);
 
@@ -35,6 +37,16 @@ export function ProductsPage() {
     return () => clearTimeout(t);
   }, [load]);
 
+  async function importCsv() {
+    try {
+      const r = await api.productCsvRead();
+      if (r.error) return toast.error(r.error);
+      if (r.ok) setReview(r);
+    } catch (e) {
+      toast.fromError(e);
+    }
+  }
+
   function exportCsv() {
     const head = ["Name", "Brand", "Model", "Category", "SKU", "Barcode", "GST %", "Customer price", "Technician price", "Stock", "Warranty (months)"];
     void api.exportCsv("products.csv", [head, ...rows.map((p) => [p.name, p.brand, p.model, p.category, p.sku, p.barcode, p.gst_rate, p.customer_price, p.technician_price, p.qty, p.warranty_months])]);
@@ -49,6 +61,7 @@ export function ProductsPage() {
         actions={
           <>
             <button className="btn-light" onClick={exportCsv}><IconDownload size={16} /> CSV</button>
+            {canEdit && <button className="btn-light" onClick={() => void importCsv()}><IconFileSpreadsheet size={16} /> Import CSV</button>}
             {canEdit && <button className="btn-primary" onClick={() => setEdit(blank())}><IconPlus size={16} /> Add product</button>}
           </>
         }
@@ -58,6 +71,7 @@ export function ProductsPage() {
           <IconSearch size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input data-search className="input pl-9" placeholder="Search name, brand, model, SKU, barcode, category" value={q} onChange={(e) => setQ(e.target.value)} />
         </div>
+        {canEdit && <button className="text-xs font-semibold text-brand-700 hover:underline" onClick={() => void api.productTemplate()}>Download CSV template</button>}
         <label className="flex items-center gap-2 text-sm text-slate-600"><input type="checkbox" checked={all} onChange={(e) => setAll(e.target.checked)} /> Show switched-off</label>
       </div>
       <div className="card overflow-x-auto">
@@ -90,6 +104,7 @@ export function ProductsPage() {
         {rows.length === 0 && <Empty text="No products yet. Add your first product with both prices." />}
         <Pager {...paged} />
       </div>
+      {review && <ProductImportReview result={review} onClose={() => setReview(null)} onDone={() => { setReview(null); void load(); }} />}
       {edit && <ProductForm initial={edit} categories={categories} canCost={canCost} onClose={() => setEdit(null)} onSaved={() => { setEdit(null); void load(); }} />}
     </div>
   );

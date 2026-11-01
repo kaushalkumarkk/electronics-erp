@@ -5,6 +5,7 @@ import electron from "./electronRequire";
 import { activityList, logActivity } from "./activity";
 import { authState, changeOwnPassword, listUsers, login, logout, permissionsFor, requireUser, resetPassword, saveUser, setUserPermissions, setupSuperadmin, userPermissions } from "./auth";
 import { autoBackup, backupNow, backupStatus, backupToFolder, chooseFolder, exportCsv, restoreBackup } from "./backup";
+import { productCsvRead, productCsvSave, productTemplate } from "./productImport";
 import { purchaseCsvRead, purchasePdfPick, purchaseTableRead, purchaseTemplate } from "./purchaseImport";
 import { udharBills, customerLedger, customerPrices, deletePayment, duesList, listCustomers, partyPrices, saveCustomer, saveCustomerPrice, savePayment } from "./customers";
 import { getDb } from "./db";
@@ -92,6 +93,14 @@ const handlers: Api = {
     logActivity(u.id, p.id ? "Product edited" : "Product added", p.name, `customer ₹${p.customer_price}, technician ₹${p.technician_price}`);
     return id;
   },
+  productCsvRead: async () => (may("products.edit"), productCsvRead()),
+  productCsvSave: async (rows) => {
+    const u = may("products.edit");
+    const res = productCsvSave(rows);
+    logActivity(u.id, "Products imported", "", `${res.added} added, ${res.updated} updated`);
+    return res;
+  },
+  productTemplate: async () => (may("products.edit"), productTemplate()),
   productCategories: async () => (may(), productCategories()),
   sellableSearch: async (q) => {
     const u = may("billing", "repairs");

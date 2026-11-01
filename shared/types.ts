@@ -527,6 +527,10 @@ export interface Api {
   purchaseTemplate(): Promise<{ ok: boolean; path?: string }>;
   udharBills(): Promise<UdharBill[]>;
 
+  productCsvRead(): Promise<ProductImportResult>;
+  productCsvSave(rows: ProductImportRow[]): Promise<{ added: number; updated: number; stocked: number }>;
+  productTemplate(): Promise<{ ok: boolean; path?: string }>;
+
   authState(): Promise<AuthState>;
   setupSuperadmin(i: { name: string; username: string; password: string; staff?: { name: string; username: string; password: string } }): Promise<Session>;
   login(username: string, password: string): Promise<Session>;
@@ -643,4 +647,42 @@ export interface UdharBill {
   paid: number;
   due: number;
   days: number;
+}
+
+/* ---------- product import (CSV) ---------- */
+
+export interface ProductImportRow {
+  /** the row in the file (the header is row 1) */
+  line: number;
+  /** the product it matched (by barcode, SKU or exact name), or null for a new one */
+  id: number | null;
+  name: string;
+  brand: string;
+  model: string;
+  category: string;
+  sku: string;
+  barcode: string;
+  hsn: string;
+  gst_rate: number;
+  unit: string;
+  warranty_months: number;
+  track_serial: boolean;
+  is_service: boolean;
+  customer_price: number;
+  technician_price: number;
+  cost: number;
+  min_stock: number;
+  rack: string;
+  /** opening stock, used for a new product only */
+  qty: number;
+  serial_nos: string[];
+  /** which columns the file really had: an update changes only those */
+  has: Record<"brand" | "model" | "category" | "hsn" | "gst" | "unit" | "warranty" | "min_stock" | "rack" | "customer_price" | "technician_price" | "cost", boolean>;
+  issues: string[];
+}
+export interface ProductImportResult {
+  ok: boolean;
+  rows: ProductImportRow[];
+  fileName?: string;
+  error?: string;
 }
